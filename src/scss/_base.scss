@@ -1,0 +1,114 @@
+@forward 'vars';
+@forward 'mixins';
+
+@use 'vars' as *;
+@use 'mixins' as *;
+@use 'sass:color';
+
+*{outline-color:$bdrclr; box-sizing:border-box; min-height:0; min-width:0;}
+html{margin:0; padding:0; font-size:$fontsize; line-height:1.309em; color:$txtclr;}
+body{margin:0; padding:0; @include pfont; overflow-x:hidden; scroll-behavior:smooth;
+    h1,h2,h3,h4,h5,h6{@include hfont; line-height:1.309em; margin:1rem 0;}
+    h1{font-size:1.618em * 1.618;}
+    h2{font-size:1.618em * 1.309;}
+    h3{font-size:1.618em;}
+    h4{font-size:1.309em;}
+    h5{@include pfont; font-size:1em; font-style:italic;}
+    h6{@include pfont; font-size:1em;}
+    a{color:$linkclr; font-weight:700; text-decoration:none; border-bottom:1px dotted $linkclr;
+        &:hover{text-decoration:none; border-bottom-style:solid; color:$linkclr-hov; border-bottom-color:$linkclr-hov;}
+    }
+    a[href^="tel:"]:not(.nobtn),a[href^="sms:"]:not(.nobtn){@include btnstyle; background-image:$btnbg; position:relative; display:inline-block; width:fit-content; margin:.5em auto .5em 2em; padding:3px 9px; border-radius:0 $bdrrad $bdrrad 0;
+        &::before{@include btnstyle; background-image:$btnbg; position:absolute; top:-1px; left:0; bottom:auto; width:auto; padding:2px 8px 4px 10px; transform:translateX(-100%); font-size:.88em;
+                    content:"\e942"; font-family:'icomoon' !important; font-style:normal; font-weight:normal; font-variant:normal; text-transform:none; text-align:right; border-radius:$bdrrad 0 0 $bdrrad;
+                    -webkit-font-smoothing: antialiased; -moz-osx-font-smoothing: grayscale;}
+        &:hover::before, &:active::before, &:focus::before{background-image:$btnbg_inv;}
+    }
+    p{margin:1em 0; padding:0;
+        &:empty{display:none;}
+    }
+    img{object-fit:contain; width:100%; height:100%; margin:0; padding:0;}
+    hr{width:100%;}
+    b,strong{font-weight:700;}
+    button,a.btnstyle{@include btnstyle;}
+    figure{width:fit-content; max-height:calc(100vh - 75px); margin:0; padding:.25em .25em 0; border:1px solid $bdrclr; color:$txtclr_alt; background-image:$cardbg;
+        img{margin:0; border:1px solid $bdrclr; object-fit:cover; height:auto;}
+        figcaption{position:relative; margin:0;
+            >*:first-child{margin-top:0;}
+            >*:last-child{margin-bottom:0;}
+        }
+    }
+    blockquote{position:relative; margin:1em 0; padding:.618em 1.236em; border-left:6px solid $bdrclr; background:$bgclr_alt; color:$txtclr_alt;
+        &::before,&::after{position:absolute; top:33%; font-size:2em; font-weight:bold;}
+        &::before{content:open-quote; left:.155em;}
+        &::after{content:close-quote; right:.155em;}
+        >*:first-child{margin-top:0;}
+        >*:last-child{margin-bottom:0;}
+    }
+}
+.sr-only{position:absolute; width:1px; height:1px; padding:0; margin:-1px; overflow:hidden; clip:rect(0,0,0,0); border:0;}
+.embedrap{position:relative; padding-bottom:56.25%; height:0; overflow:hidden; max-width:100%;
+	iframe, object, embed { position: absolute; top: 0; left: 0; width: 100%; height: 100%;}
+}
+.social{@include flex(row,nowrap,center,center); margin:0; padding:0; list-style:none;
+    li{margin:0 .5em;
+        a{border-bottom:none;
+            span{text-indent:-9999px;}
+        }
+        &:first-child{font-size:.9em; text-transform:lowercase;}
+    }
+    &.inv{
+        a{color:$linkclr_alt;
+            &:hover{color:$linkclr_alt-hov;}
+        }
+    }
+}
+.cbgal{overflow:hidden; border:$bdrwidth solid $bdrclr_alt; width:100%; max-width:100%; max-height:100vh; min-width:0; min-height:0;
+    ul{margin:0; padding:0; list-style:none; max-height:100%; height:100%; display:flex;
+        li{margin:0; padding:0; width:auto; height:50vh; max-height:100%; flex-shrink:0; position:relative; z-index:0; overflow:hidden;
+                @include flex(column,nowrap,center,stretch);
+            .bg{position:absolute; top:-14px; right:-14px; bottom:-14px; left:-14px; z-index:-1; background:center no-repeat; background-size:cover; filter:blur(7px);}
+            img{object-fit:contain;}
+        }
+    }
+}
+section.hero{position:relative; min-height:67vh; background:center no-repeat; background-size:cover;
+    &.lg{
+        .rap{@include respond-to(desktop){top:0; width:100%;}}
+    }
+    .rap{position:absolute; top:0; bottom:0; width:100%; padding:1em .5em; background:color.adjust($bgclr,$alpha:-.5); text-align:center;
+            @include respond-to(desktop){top:1em; left:50%; bottom:unset; transform:translateX(-50%); width:35%;}
+        &:empty{display:none;}
+        h2{margin:0;}
+    }
+}
+.row{
+    &.col1{
+        .col{flex:1 1 auto; margin:0 auto;
+            @include respond-to(desktop){
+                &.full{width:100%;}
+                &.twothirds{width:66%;}
+                &.half{width:50%;}
+            }
+        }
+    }
+    &.cols{@include flex(column,nowrap,space-between,stretch); padding:0; @include respond-to(desktop){flex-direction:row;}
+        .col{flex:0 0 auto; padding:0 .5em; display:flex; flex-direction:column;}
+    }
+    &.sidebar{@include respond-to(desktop){width:33%;}
+        div{
+            aside{font-size:.8em; border:1px solid $bdrclr; padding:.5em;
+                &.l{float:left;}
+                &.r{float:right;}
+            }
+        }
+    }
+    &.float{display:block;
+        &::after{display:table; clear:both; content:'';}
+        @include respond-to(desktop){
+            aside{float:right; width:50%; margin:0 0 1em 1em;
+                &.l{float:left; margin:0 1em 1em 0;}
+            }
+        }
+    }
+}

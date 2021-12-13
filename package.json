@@ -1,0 +1,22 @@
+{
+	"name": "npm-build-ravenflight",
+	"version": "1.3.0",
+	"description": "A set of web dev tasks.",
+	"author": "David Willis <david@ravenflight.media>",
+	"config": {
+		"assets": "/www/assets/null"
+	},
+	"scripts": {
+		"scss": "sass --style=compressed src/scss:dist/css",
+		"prefix": "postcss -u autoprefixer -r dist/css/*.css",
+		"lint": "eslint dist/js",
+		"imgmin": "imagemin src/images dist/img -p",
+		"deploy:css": "npm run scss && node deploy \"/dist/css\" \"%npm_package_config_assets%/css\"",
+		"deploy:js": "npm run lint && node deploy \"/dist/js\" \"%npm_package_config_assets%/js\"",
+		"deploy:prod": "npm run imgmin && npm run scss && npm run prefix && node deploy \"/dist\" \"%npm_package_config_assets%\"",
+		"watch:css": "onchange -k \"src/scss/*.scss\" -- npm run deploy:css",
+		"watch:js": "onchange -k \"src/js/*.js\" -- npm run deploy:js",
+		"watch:all": "concurrently \"npm run watch:css\" \"npm run watch:js\""
+	},
+	"dependencies": {}
+}
