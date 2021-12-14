@@ -3,3 +3,43 @@
 
 @import '../icomoon/style';
 
+body{background:url('/assets/img/bg.jpg') no-repeat center; background-size:cover;
+	main{height:100vh; overflow:hidden; background:color.adjust($bgclr, $alpha:-.5);
+			display:grid; justify-content:center; align-items:center;
+		article{
+			&#clok{display:flex; flex-direction:column;
+				.time{font-size:2em;}
+				.date{font-size:.8em}
+			}
+			&#apidata{display:grid; grid:repeat(3, 1fr) / repeat(3,1fr); font-size:2em;
+				span{display:flex; justify-content:center; align-items:center; padding:.6em .3em; border:1px solid $bdrclr; position:relative; font-weight:bold;
+					&::before{font-size:.5em; line-height:0; position:absolute; bottom:.67em; left:50%; transform:translateX(-50%); font-weight:normal;}
+				}
+				.temp{grid-column:1 / 3; grid-row:1 / 3; font-size:3em;
+					&::after{content:"\00b0";}
+				}
+				.temp_min{
+					&::before{content:'min';}
+					&::after{content:"\00b0";}
+				}
+				.temp_max{
+					&::before{content:'max';}
+					&::after{content:"\00b0";}
+				}
+				.humidity{
+					&::before{content:'humidity';}
+					&::after{content:"%";}
+				}
+				.pressure{
+					&::before{content:'pressure';}
+					&::after{content:"mbar"; font-size:.25em; transform:translateY(1em);}
+				}
+				.feel{
+					&::before{content:'feel';}
+					&::after{content:"\00b0";}
+				}
+			}
+			&#updated{font-size:.5em;}
+		}
+	}
+}

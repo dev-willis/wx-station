@@ -4,7 +4,7 @@ $hfont:sans-serif;
 $hfont_weight:700;
 $pfont:sans-serif;
 $pfont_weight:400;
-$fontsize:20px;
+$fontsize:24px;
 $fontmultiplier:1.618;
 
 $assets:"/assets/null";
@@ -20,7 +20,7 @@ $gr-l:hsl(0, 0%, 75%);
 $gr-f:hsl(0, 0%, 90%);
 $wh:hsl(0, 0%, 100%);
 
-$txtclr:$bk;
+$txtclr:$gr-f;
 $txtclr_alt:$wh;
 $linkclr:blue;
 $linkclr-hov:color.scale($linkclr,$whiteness:50%);
@@ -28,7 +28,7 @@ $linkclr_alt:red;
 $linkclr_alt-hov:color.scale($linkclr_alt,$whiteness:50%);
 $bdrclr:$gr;
 $bdrclr_alt:$wh;
-$bgclr:$wh;
+$bgclr:$gr-d;
 $bgclr_alt:$bk;
 $btnbg:$gr-d;
 $btnbg_inv:$gr-l;

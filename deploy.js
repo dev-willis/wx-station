@@ -4,10 +4,10 @@ var FtpDeploy = require("ftp-deploy"),
     rpath = process.argv[3],
 
     config = {
-        user: "c0500",
+        user: "dwillis",
         password: "\n",
         agent: "pageant",
-        host: "c0500.paas1.tx.modxcloud.com",
+        host: "pinas.local",
         port: 22,
         localRoot: __dirname + lpath,
         remoteRoot: rpath,
