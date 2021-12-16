@@ -18,5 +18,7 @@
 		"watch:js": "onchange -k \"src/js/*.js\" -- npm run deploy:js",
 		"watch:all": "concurrently \"npm run watch:css\" \"npm run watch:js\""
 	},
-	"dependencies": {}
+	"dependencies": {
+		"chartjs": "^0.3.24"
+	}
 }
