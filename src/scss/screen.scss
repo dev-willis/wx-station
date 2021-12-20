@@ -53,12 +53,8 @@ body{background:url('/assets/img/bg.jpg') no-repeat center; background-size:cove
 			}
 		}
 		#apichart{grid-column:1 / 4; grid-row:3 / 4; overflow:hidden; flex:1 1 auto; border:1px solid $bdrclr;}
-		#nfo{display:flex; justify-content:space-between; align-items:center; padding:.3em; border:1px solid $bdrclr;
-			#clok{display:flex; flex-direction:column;
-				.time{font-size:2em; padding:.25em 0 0;}
-				.date{font-size:.8em; text-indent:.5em;}
-			}
-			#tdata{font-size:.5em; line-height:1.25em; text-align:right;}
+		#nfo{padding:.3em; border:1px solid $bdrclr; font-size:.5em; line-height:1.25em; text-align:right;
+			&:empty{display:none;}
 		}
 	}
 }
