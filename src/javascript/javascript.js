@@ -1,5 +1,5 @@
 let updateInterval = 5, //in minutes
-	//lastFullUpdate = lastPartialUpdate = "none",
+	lastFullUpdate = lastPartialUpdate = "none",
 	i = 60 / updateInterval; //update forecast once an hour
 			
 document.querySelector("body").addEventListener("click", function(){
@@ -102,9 +102,9 @@ const dataRefresh = function(fullUpdate = true){
 				apidata.querySelector(".sun .rise").innerText = readableTime(data.current.sunrise * 1000);
 				apidata.querySelector(".sun .set").innerText = readableTime(data.current.sunset * 1000);
 				apidata.querySelector(".uvi").innerText = data.current.uvi;
-				/*lastFullUpdate = readableTime();
-							document.querySelector('#tdata').innerHTML = 'Last Partial: <b>'+lastPartialUpdate+'</b><br>Last Full: <b>'+lastFullUpdate+'</b><br>'+
-																		'id:<b>'+data.current.weather[0].id+'</b>, main:<b>'+data.current.weather[0].main+'</b>, description:<b>'+data.current.weather[0].description+'</b>';*/
+				
+				lastFullUpdate = readableTime();
+				//document.querySelector('#tdata').innerHTML = 'Last Partial: <b>'+lastPartialUpdate+'</b><br>Last Full: <b>'+lastFullUpdate+'</b>';
 							
 				let mainData = {"temp":data.current.temp, "humidity":data.current.humidity, "pressure":data.current.pressure};
 				localStorage.setItem(Date.now(), JSON.stringify(mainData));
@@ -115,22 +115,22 @@ const dataRefresh = function(fullUpdate = true){
 				apichart.data.datasets[2].data = [];
 				apichart.data.datasets[3].data = [];
 							
-				/*let i = 0;
-							Object.entries(localStorage).forEach(([key,val]) => {
-								let data = JSON.parse(val),
-									dataDate = new Date(key),
-									cutoffDate = new Date(new Date().getTime() - (48 * 60 * 60 * 1000));
-								
-								if(dataDate < cutoffDate) localStorage.removeItem(key);
-								else{
-									apichart.data.labels.push(readableTime((key * 1000), false));
-									apichart.data.datasets[0].data.push(data.pressure);
-									apichart.data.datasets[1].data.push(data.humidity);
-									apichart.data.datasets[2].data.push(data.temp);
-									apichart.data.datasets[3].data.push(0);
-								}
-								i++;
-							});*/
+				let i = 0;
+				Object.entries(localStorage).forEach(([key,val]) => {
+					let data = JSON.parse(val),
+						dataDate = new Date(key),
+						cutoffDate = new Date(new Date().getTime() - (48 * 60 * 60 * 1000));
+					
+					if(dataDate < cutoffDate) localStorage.removeItem(key);
+					else{
+						apichart.data.labels.push(readableTime((key * 1000), false));
+						apichart.data.datasets[0].data.push(data.pressure);
+						apichart.data.datasets[1].data.push(data.humidity);
+						apichart.data.datasets[2].data.push(data.temp);
+						apichart.data.datasets[3].data.push(0);
+					}
+					i++;
+				});
 							
 				data.hourly.forEach(hour => {
 					apichart.data.labels.push(readableTime((hour.dt * 1000), false));
@@ -146,9 +146,9 @@ const dataRefresh = function(fullUpdate = true){
 				apidata.querySelector(".temp .current").innerText = data.main.temp;
 				apidata.querySelector(".humidity").innerText = data.main.humidity;
 				apidata.querySelector(".pressure").innerText = data.main.pressure;
-				/*lastPartialUpdate = readableTime();
-							document.querySelector('#tdata').innerHTML = 'Last Partial: <b>'+lastPartialUpdate+'</b><br>Last Full: <b>'+lastFullUpdate+'</b><br>'+
-																		'id:<b>'+data.weather[0].id+'</b>, main:<b>'+data.weather[0].main+'</b>, description:<b>'+data.weather[0].description+'</b>';*/
+				
+				lastPartialUpdate = readableTime();
+				//document.querySelector('#tdata').innerHTML = 'Last Partial: <b>'+lastPartialUpdate+'</b><br>Last Full: <b>'+lastFullUpdate+'</b>';
 			}
 		}).catch(error => {document.querySelector("#nfo").innerHTML += "<br>"+error;});
 				

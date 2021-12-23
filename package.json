@@ -7,16 +7,16 @@
 		"assets": "www/assets"
 	},
 	"scripts": {
+		"lint": "eslint src/javascript --fix",
+		"imgmin": "imagemin src/images --out-dir dist/img --plugin.webp.quality=95",
 		"scss": "sass --style=compressed src/scss:dist/css",
 		"prefix": "postcss -u autoprefixer -r dist/css/*.css",
-		"lint": "eslint src/javascript --fix",
 		"terse": "terser src/javascript/javascript.js --source-map --output dist/js/js.js",
-		"imgmin": "imagemin src/images --out-dir dist/img --plugin.webp.quality=95",
 		"deploy:css": "npm run scss && node deploy \"/dist/css\" \"%npm_package_config_assets%/css\"",
-		"deploy:js": "npm run lint && node deploy \"/dist/js\" \"%npm_package_config_assets%/js\"",
-		"deploy:prod": "npm run imgmin && npm run terse && npm run scss && npm run prefix && node deploy \"/dist\" \"%npm_package_config_assets%\"",
+		"deploy:js": "npm run terse && node deploy \"/dist/js\" \"%npm_package_config_assets%/js\"",
+		"deploy:all": "npm run terse && npm run scss && npm run prefix && node deploy \"/dist\" \"%npm_package_config_assets%\"",
 		"watch:css": "onchange -k \"src/scss/*.scss\" -- npm run deploy:css",
-		"watch:js": "onchange -k \"src/js/*.js\" -- npm run deploy:js",
+		"watch:js": "onchange -k \"src/javascript/*.js\" -- npm run deploy:js",
 		"watch:all": "concurrently \"npm run watch:css\" \"npm run watch:js\""
 	},
 	"dependencies": {
