@@ -3,6 +3,7 @@
 */	
 
 import Chart from 'chart.js/auto';
+import 'chartjs-adapter-date-fns';
 
 let apikey = "48ce79e682e5e8f79e39cc1374871d75",
 	url_current = "https://api.openweathermap.org/data/2.5/weather?units=imperial&lat=36.16754647878633&lon=-86.21153419024921&appid="+apikey,
@@ -29,20 +30,21 @@ const ctx = document.querySelector("#apichart canvas").getContext("2d");
 const apichart = new Chart(ctx, {
 	type:"line",
 	data:{
-		labels:[],
 		datasets:[{
 			label:"Pressure",
 			data: [],
 			fill:false,
 			borderColor: "rgb(255, 255, 255)",
 			backgroundColor: "rgba(255, 255, 255, .5)",
-			yAxisID:"y"},
+			xAxisID:"x",
+			yAxisID:"y2"},
 		{
 			label:"Humidity",
 			data: [],
 			fill:false,
 			borderColor: "rgb(0, 255, 255)",
 			backgroundColor: "rgba(0, 255, 255, .5)",
+			xAxisID:"x",
 			yAxisID:"y1"},
 		{
 			label:"Temp",
@@ -50,6 +52,7 @@ const apichart = new Chart(ctx, {
 			fill:false,
 			borderColor: "rgb(255, 127, 0)",
 			backgroundColor: "rgba(255, 127, 0, .5)",
+			xAxisID:"x",
 			yAxisID:"y1"},
 		{
 			label:"Rain",
@@ -58,6 +61,7 @@ const apichart = new Chart(ctx, {
 			fill:false,
 			borderColor: "rgb(0, 127, 255)",
 			backgroundColor: "rgba(0, 127, 255, .25)",
+			xAxisID:"x",
 			yAxisID:"y1"}
 		]},
 	options:{
@@ -65,30 +69,26 @@ const apichart = new Chart(ctx, {
 		maintainAspectRatio:false,
 		color:"rgb(255,255,255)",
 		scales:{
-			y:{
-				min:990,
-				max:1040
-			},
 			y1:{
-				position:"right",
 				min:0,
 				max:100
 			},
 			y2:{
-				min:0,
-				max:10,
-				display:false
+				position:"right",
+				min:990,
+				max:1040
 			},
 			x:{
 				type:"time",
+				min:(Date.now() - (48*60*60*1000)),
+				max:(Date.now() + (48*60*60*1000)),
 				time:{
-					ticks:{
-						source:"labels"
-					}
+					unit:'hour',
+					displayFormats:{hour:'HH:mm'}
 				},
 				grid:{
 					display:true,
-					color: (line) => (line.index < localStorage.length ? 'rgba(0,0,0,1)' : 'rgba(128,128,128,.5)')
+					//color: (line) => (line.index < (localStorage.length - 1) ? 'rgba(0,0,0,1)' : 'rgba(128,128,128,.5)')
 				}
 			}
 		}
@@ -124,34 +124,37 @@ const dataRefresh = function(fullUpdate = true){
 				
 				localStorage.setItem(Date.now(), JSON.stringify(logdata));
 
+				//remove old entries and add the rest to an array
 				Object.entries(localStorage).forEach(([key,val]) => {
 					let dataDate = new Date(parseInt(key)),
 						cutoffDate = new Date(Date.now() - (48 * 60 * 60 * 1000));
 					
-					if(dataDate < cutoffDate) console.log('data lt cutoff'); //localStorage.removeItem(key);
-					else apilog.push([key,val]);
+					if(dataDate < cutoffDate) console.log('remove: ',dataDate, cutoffDate); //localStorage.removeItem(key);
+					//else apilog.push([key,val]);
+					apilog.push([key,val]);
 				});
 				
 				apilog.sort((a,b) => {return parseInt(a) - parseInt(b);});
 
 				Object.entries(apilog).forEach(lmnt => {
-					let data = JSON.parse(lmnt[1][1]);
+					let log = lmnt[1],
+						data = JSON.parse(log[1]),
+						xcoord = parseInt(log[0]);
 					
-					apichart.data.labels.push(parseInt(lmnt[1][0]));
-					apichart.data.datasets[0].data.push(data.pressure);
-					apichart.data.datasets[1].data.push(data.humidity);
-					apichart.data.datasets[2].data.push(data.temp);
-					apichart.data.datasets[3].data.push(0);
+					apichart.data.datasets[0].data.push({x:xcoord, y:data.pressure});
+					apichart.data.datasets[1].data.push({x:xcoord, y:data.humidity});
+					apichart.data.datasets[2].data.push({x:xcoord, y:data.temp});
+					apichart.data.datasets[3].data.push({x:xcoord, y:0});
 				});
-
+				
 				data.hourly.forEach(hour => {
-					apichart.data.labels.push(readableTime((hour.dt * 1000), false));
-					apichart.data.datasets[0].data.push(hour.pressure);
-					apichart.data.datasets[1].data.push(hour.humidity);
-					apichart.data.datasets[2].data.push(hour.temp);
-					apichart.data.datasets[3].data.push(hour.pop * 100);
+					let xcoord = hour.dt * 1000;
+					apichart.data.datasets[0].data.push({x:xcoord, y:hour.pressure});
+					apichart.data.datasets[1].data.push({x:xcoord, y:hour.humidity});
+					apichart.data.datasets[2].data.push({x:xcoord, y:hour.temp});
+					apichart.data.datasets[3].data.push({x:xcoord, y:(hour.pop * 100)});
 				});
-							
+				
 				apichart.update();
 				//localStorage.lastFullUpdate = readableTime();
 			}else{

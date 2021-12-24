@@ -20,7 +20,7 @@ var FtpDeploy = require("ftp-deploy"),
 
 if(!rpath || !lpath){
     console.log("No path.");
-    return;
+    process.exit;
 }
 
 ftpDeploy

@@ -3,12 +3,12 @@
 	"version": "1.5.0",
 	"description": "A set of web dev tasks.",
 	"author": "David Willis <david@ravenflight.media>",
-	"type":"module",
+	"type": "module",
 	"config": {
 		"assets": "www/assets"
 	},
 	"scripts": {
-		"build": "rollup -c",
+		"build": "rollup -c && node deploy.cjs \"/dist/js\" \"%npm_package_config_assets%/js\"",
 		"watch": "rollup -c -w",
 		"lint": "eslint src/javascript --fix",
 		"imgmin": "imagemin src/images --out-dir dist/img --plugin.webp.quality=95",
@@ -23,12 +23,17 @@
 		"watch:all": "concurrently \"npm run watch:css\" \"npm run watch:js\""
 	},
 	"dependencies": {
-		"date-fns": "^2.16.1",
-		"chart.js": "^3.6.2"
+		"chart.js": "^3.6.2",
+		"chartjs-adapter-date-fns": "^2.0.0",
+		"date-fns": "^2.27.0"
 	},
 	"devDependencies": {
+		"@rollup/plugin-commonjs": "^17.0.0",
+		"@rollup/plugin-node-resolve": "^11.1.0",
+		"@samkirkland/ftp-deploy": "^1.1.1",
+		"eslint": "^8.5.0",
+		"npm-run-all": "^4.1.5",
 		"rollup": "^2.36.2",
-		"rollup-plugin-terser": "^7.0.2",
-		"eslint": "^8.5.0"
+		"rollup-plugin-terser": "^7.0.2"
 	}
 }
