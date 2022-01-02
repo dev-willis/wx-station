@@ -15,9 +15,9 @@
 		"scss": "sass --style=compressed src/scss:dist/css",
 		"prefix": "postcss -u autoprefixer -r dist/css/*.css",
 		"terse": "terser src/js/main.js --source-map --output dist/js/js.js",
-		"deploy:css": "npm run scss && node deploy \"/dist/css\" \"%npm_package_config_assets%/css\"",
-		"deploy:js": "npm run terse && node deploy \"/dist/js\" \"%npm_package_config_assets%/js\"",
-		"deploy:all": "npm run terse && npm run scss && npm run prefix && node deploy \"/dist\" \"%npm_package_config_assets%\"",
+		"deploy:css": "npm run scss && node deploy.cjs \"/dist/css\" \"%npm_package_config_assets%/css\"",
+		"deploy:js": "npm run terse && node deploy.cjs \"/dist/js\" \"%npm_package_config_assets%/js\"",
+		"deploy:all": "npm run terse && npm run scss && npm run prefix && node deploy.cjs \"/dist\" \"%npm_package_config_assets%\"",
 		"watch:css": "onchange -k \"src/scss/*.scss\" -- npm run deploy:css",
 		"watch:js": "onchange -k \"src/javascript/*.js\" -- npm run deploy:js",
 		"watch:all": "concurrently \"npm run watch:css\" \"npm run watch:js\""
