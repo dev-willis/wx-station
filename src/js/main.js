@@ -3,7 +3,7 @@ import 'chartjs-adapter-date-fns';
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
 import format from 'date-fns/format'
 
-let apikey = "48ce79e682e5e8f79e39cc1374871d75",
+let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
 	updateInterval = 10, //in minutes
 	wxdata = document.querySelector("#wxdata"),
 	chart_ctx = document.querySelector("#wxchart canvas").getContext("2d"),
@@ -58,9 +58,7 @@ const wxchart = new Chart(chart_ctx, {
 				},
 				grid:{
 					display:true,
-					color: (line) => {
-						if(line.tick) return (line.tick.value > Date.now() ? 'rgba(0,0,0,.25)' : 'rgba(0,0,0,.75)')
-					}
+					color: line => (line.tick) ? (line.tick.value > Date.now() ? 'rgba(0,0,0,.25)' : 'rgba(0,0,0,.75)') : ''
 				}
 			}
 		}
@@ -70,13 +68,15 @@ const wxchart = new Chart(chart_ctx, {
 const mb2inHg = mb => Number((Math.round(1000 * mb * 0.0295301) / 1000));
 
 function updateData(){
-	let body = document.querySelector('body'),
+	let body = document.body,
 		sunrise = new Date(data.current.sunrise * 1000),
 		sunset = new Date(data.current.sunset * 1000),
 		moonrise = new Date(data.daily[0].moonrise * 1000),
 		moonset = new Date(data.daily[0].moonset * 1000),
 		now = new Date(),
-		phase = '';
+		precip = false,
+		phase = '',
+		nfo = '';
 
 	//set display theme
 	if(now < sunrise) body.className = 'predawn';
@@ -108,42 +108,21 @@ function updateData(){
 	wxdata.querySelector(".moon .set").innerHTML = format(moonset, 'HH:mm') + '<small>(' + (now > moonset ? '+' : '-') + formatDistanceToNowStrict(moonset) + ')</small>';
 	wxdata.querySelector(".moon .phase").innerHTML = phase;
 
-	if(false) getMap();
+	for(let i=0; i<12; i++)
+		if(data.hourly[i].weather[0].id < 800) precip = true;
+	
+	if(precip){
+		getMap();
+		if(Math.floor(data.hourly[0].weather[0].id / 100) == 7) nfo += data.hourly[0].weather[0].main;
+		else if(Math.floor(data.hourly[1].weather[0].id / 100) == 7) nfo += data.hourly[1].weather[0].main;
+	}
 
 	document.querySelector('#as-of').innerText = format(Date.now(), 'HH:mm');
-	document.querySelector('#log').innerHTML = '';
+	document.querySelector('#nfo').innerHTML = nfo;
 }
 
-function getMap(zoom = 9, lat = 36.1467, lon = -86.8250){
-	let n = 2 ** zoom,
-		xtile = Math.floor((lon + 180) / 360 * n),
-		ytile = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n);
-
-	fetch(new Request("https://tile.openweathermap.org/map/precipitation_new/"+zoom+"/"+xtile+"/"+ytile+".png?appid="+apikey))
-		.then(response => response.blob())
-		.then(imageBlob => {
-			const imageObjectURL = URL.createObjectURL(imageBlob);
-			console.log(imageObjectURL);
-		});
-}
-
-function getWX(){
-	fetch(new Request("https://api.openweathermap.org/data/2.5/weather?units=imperial&lat=36.16754647878633&lon=-86.21153419024921&appid="+apikey))
-		.then(response => response.json())
-		.then(json => {
-			Object.assign(data,json);
-			localStorage.lastPartialUpdate = Date.now();
-			
-			data.current.temp = json.main.temp;
-			data.current.humidity = json.main.humidity;
-			data.current.pressure = json.main.pressure;
-
-			updateData();
-		}).catch(error => {document.querySelector("#log").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
-}
-
-function getOneCall(){
-	fetch(new Request("https://api.openweathermap.org/data/2.5/onecall?units=imperial&lat=36.16754647878633&lon=-86.21153419024921&appid="+apikey))
+function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
+	fetch(new Request('https://api.openweathermap.org/data/2.5/onecall?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
 		.then(response => response.json())
 		.then(json => {
 			Object.assign(data,json);
@@ -174,41 +153,87 @@ function getOneCall(){
 
 			wxlog.forEach(lmnt => {
 				let y = JSON.parse(lmnt[1]),
-					xcoord = parseInt(lmnt[0]);
+					x = parseInt(lmnt[0]);
 				
-				wxchart.data.datasets[0].data.push({x: xcoord, y: mb2inHg(y.pressure)});
-				wxchart.data.datasets[1].data.push({x: xcoord, y: y.humidity});
-				wxchart.data.datasets[2].data.push({x: xcoord, y: y.temp});
-				wxchart.data.datasets[3].data.push({x: xcoord, y: 0});
+				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(y.pressure)});
+				wxchart.data.datasets[1].data.push({x: x, y: y.humidity});
+				wxchart.data.datasets[2].data.push({x: x, y: y.temp});
+				wxchart.data.datasets[3].data.push({x: x, y: 0});
 			});
 			
 			data.hourly.forEach(hour => {
-				let xcoord = hour.dt * 1000;
+				let x = hour.dt * 1000;
 
-				wxchart.data.datasets[0].data.push({x: xcoord, y: mb2inHg(hour.pressure)});
-				wxchart.data.datasets[1].data.push({x: xcoord, y: hour.humidity});
-				wxchart.data.datasets[2].data.push({x: xcoord, y: hour.temp});
-				wxchart.data.datasets[3].data.push({x: xcoord, y: (hour.pop * 100)});
+				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(hour.pressure)});
+				wxchart.data.datasets[1].data.push({x: x, y: hour.humidity});
+				wxchart.data.datasets[2].data.push({x: x, y: hour.temp});
+				wxchart.data.datasets[3].data.push({x: x, y: (hour.pop * 100)});
 			});
 
 			wxchart.update();
 			localStorage.lastFullUpdate = Date.now();
-		}).catch(error => {document.querySelector("#log").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
+		}).catch(error => {document.querySelector("#nfo").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
 };
 
-getOneCall();
+function getWX(lat = 36.16754647878633, lon = -86.21153419024921){
+	fetch(new Request('https://api.openweathermap.org/data/2.5/weather?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
+		.then(response => response.json())
+		.then(json => {
+			Object.assign(data,json);
+			
+			//so there's only one place to look for these
+			data.current.temp = json.main.temp;
+			data.current.humidity = json.main.humidity;
+			data.current.pressure = json.main.pressure;
+
+			updateData();
+		}).catch(error => {document.querySelector("#nfo").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
+}
+
+function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
+
+	return;
+
+	let n = 2 ** zoom,
+		xtile = Math.floor((lon + 180) / 360 * n),
+		ytile = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n),
+		canvas = document.querySelector("#map canvas"),
+		ctx = canvas.getContext("2d"),
+		tilesize = 256;
+
+	canvas.width = window.innerWidth;
+	canvas.height = window.innerHeight;
+
+	for(let y=0; y<3; y++){
+		for(let x=0; x<4; x++){
+			fetch(new Request("https://tile.openweathermap.org/map/precipitation_new/"+zoom+"/"+(xtile + x)+"/"+(ytile + y)+".png?appid="+apikey))
+				.then(response => response.blob())
+				.then(blob => {
+					let imgURL = URL.createObjectURL(blob),
+						img = new Image(tilesize,tilesize);
+
+					img.onload = function(){ctx.drawImage(this,x*tilesize,y*tilesize);}
+
+					img.src = imgURL;
+				});
+		}
+	}
+}
+
+getOC();
 
 //clock
 setInterval(() => {
 	wxdata.querySelector(".sun .time").innerText = format(Date.now(), 'HH:mm:ss');
 },(1000));
 
-//keep data current
+//refresh data periodically
 let update_i = 0;
 setInterval(() => {
+	//onecall endpoint has a lower rate limit so only use when necessary
 	if (++update_i >= (60 / updateInterval)){
 		update_i = 0;
-		getOneCall();
+		getOC();
 	}else getWX();
 
 }, (updateInterval * 60 * 1000));

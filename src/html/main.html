@@ -1,41 +1,32 @@
-<!doctype html>
-<html lang="en">
-<head>
-    <title>[[*pagetitle]] - [[++site_name]]</title>
-    <base href="[[!++site_url]]" />
-    <meta charset="[[++modx_charset]]" />
-    <meta http-equiv="X-UA-Compatible" content="IE=edge">
-    <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1" />
-    
-    <link rel="stylesheet" type="text/css" href="assets/css/screen.css?ver=[[*editedon]]">
-</head>
-<body>
-    <main>
-        <article id="apidata">
-			<div class="temp">
-				<span class="current"></span>
-				<span class="min"></span>
-				<span class="max"></span>
-			</div>
-			<div class="air">
-				<span class="pressure"></span>
-				<span class="dew_point"></span>
-				<span class="humidity"></span>
-			</div>
-			<div class="sun">
-				<span class="uvi"></span>
-				<span class="rise"></span>
-				<span class="set"></span>
-			</div>
-		</article>
-		
-		<article id="apichart">
-			<canvas></canvas>
-		</article>
-		
-		<article id="nfo"></article>
-		
-		<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-		<script src="/assets/js/js.js"></script>
-    </main>
-</body></html>
+<section id="wxdata">
+    <article class="temp">
+        <span class="current"></span>
+        <span class="min"></span>
+        <span class="max"></span>
+    </article>
+    <article class="air">
+        <span class="pressure"></span>
+        <span class="humidity"></span>
+        <span class="dew_point"></span>
+    </article>
+    <article class="astro sun">
+        <span class="rise"></span>
+        <span class="uvi"></span>
+        <span class="set"></span>
+        <span class="time"></span>
+    </article>
+    <article class="astro moon">
+        <span class="rise"></span>
+        <span class="phase"></span>
+        <span class="set"></span>
+    </article>
+    <span id="as-of"></span>
+</section>
+
+<section id="wxchart">
+    <canvas></canvas>
+</section>
+
+<section id="nfo"></section>
+
+<script src="/assets/js/js.js?ver=[[*editedon]]"></script>
