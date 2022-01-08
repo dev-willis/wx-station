@@ -8,9 +8,9 @@ body{background:no-repeat center; background-size:cover;
 	&.eve{background-image:url('/assets/img/bg-eve.jpg');}
 	&.night{background-image:url('/assets/img/bg-night.jpg');}
 	&.predawn{background-image:url('/assets/img/bg-predawn.jpg');}
-	main{height:100vh; overflow:hidden; display:flex; flex-direction:column; background:color.adjust($bgclr, $alpha:-.5); border:1px solid $bdrclr;
+	main{height:100vh; overflow:hidden; display:flex; flex-direction:column; background:color.adjust($bk, $alpha:-.75);
 		section{width:100%;}
-		#wxdata{display:grid; grid-template-columns:repeat(4, 1fr); border-bottom:1px solid $bdrclr; position:relative;
+		#wxdata{display:grid; grid-template-columns:repeat(4, 1fr); border:1px solid $bdrclr; position:relative;
 			article{display:grid; align-items:center; padding:.5em 0; position:relative;}
 			span{padding:.3em 0; position:relative; text-align:center; font-weight:bold;
 				&::before{font-size:.5em; line-height:0; position:absolute; bottom:.67em; left:50%; font-weight:normal; transform:translateY(.25em);}
@@ -78,7 +78,7 @@ body{background:no-repeat center; background-size:cover;
 				}
 
 			}
-			#as-of{position:absolute; top:0; left:.5em; font-size:.5em; line-height:1em; font-weight:100;}
+			#as-of{position:absolute; top:0; left:.25em; font-size:.5em; line-height:1em; font-weight:100;}
 		}
 		#wxchart{grid-column:1 / 4; grid-row:3 / 4; overflow:hidden; flex:1 1 auto;}
 		#nfo{padding:.3em; border:1px solid $bdrclr; font-size:.5em; line-height:1.25em; text-align:right;

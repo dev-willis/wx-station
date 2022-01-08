@@ -21,7 +21,7 @@ $gr-f:hsl(0, 0%, 90%);
 $wh:hsl(0, 0%, 100%);
 
 $txtclr:$gr-f;
-$txtclr_alt:$wh;
+$txtclr_alt:$gr-d;
 $linkclr:blue;
 $linkclr-hov:color.scale($linkclr,$whiteness:50%);
 $linkclr_alt:red;

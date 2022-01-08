@@ -5,31 +5,47 @@ import format from 'date-fns/format'
 
 let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
 	updateInterval = 10, //in minutes
+	update_i = 0,
 	wxdata = document.querySelector("#wxdata"),
 	chart_ctx = document.querySelector("#wxchart canvas").getContext("2d"),
-	data = new Object();
-	
+	data = new Object(),
+	chart_w, chart_h, temp_grad, temp_label_grad;
+
 const wxchart = new Chart(chart_ctx, {
 	type:"line",
 	data:{
 		datasets:[{
 			label:"Pressure",
 			data: [],
-			borderColor: "rgba(255, 255, 255, .25)",
-			backgroundColor: "rgba(255, 255, 255, .75)",
-			yAxisID:"y2"},
+			yAxisID:"y2",
+			borderColor: "rgba(255, 255, 255, .5)",
+			backgroundColor: ctx => 'rgba(255, 255, 255, ' + ((ctx.raw) ? (ctx.raw.x < Date.now() ? '.75)' : '0)') : '.5)')},
 		{
 			label:"Humidity",
 			data: [],
-			borderColor: "rgba(0, 255, 255, .25)",
-			backgroundColor: "rgba(0, 255, 255, .75)"},
+			borderColor: "rgba(0, 192, 255, .5)",
+			backgroundColor: ctx => 'rgba(0, 224, 255, ' + ((ctx.raw) ? (ctx.raw.x < Date.now() ? ".75)" : "0)") : '.5)')},
 		{
 			label:"Temp",
 			data: [],
-			borderColor: "rgba(255, 127, 0, .25)",
-			backgroundColor: "rgba(255, 127, 0, .75)"},
+			borderColor: function(context){
+				const chart = context.chart,
+					{ctx, chartArea} = chart;
+		
+				if(!chartArea) return;
+
+				return tempGradient(ctx, chartArea);
+			},
+			backgroundColor: function(context){
+				const chart = context.chart,
+					{ctx, chartArea} = chart;
+		
+				if(!chartArea) return;
+				
+				return ((context.raw) ? (context.raw.x < Date.now() ? tempGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,.5)');
+			}},
 		{
-			label:"Rain",
+			label:"Precip",
 			type: "bar",
 			data: [],
 			barThickness: 1,
@@ -39,26 +55,36 @@ const wxchart = new Chart(chart_ctx, {
 	options:{
 		responsive:true,
 		maintainAspectRatio:false,
-		color:"rgb(255,255,255)",
+		plugins: {
+			legend: {
+				display: true,
+				labels: {
+					color: "rgb(224,224,224)"
+				}
+			}
+		},
 		scales:{
 			y1:{
 				min:0,
-				max:100
+				max:100,
+				ticks: {color:'rgb(224,224,224)'}
 			},
 			y2:{
 				position:"right",
 				min:29.00,
-				max:31.00
+				max:31.00,
+				ticks: {color:'rgb(224,224,224)'}
 			},
 			x:{
 				type:"time",
+				ticks: {color:'rgb(192,192,192)'},
 				time:{
 					unit:'hour',
 					displayFormats:{hour:'HH'}
 				},
 				grid:{
 					display:true,
-					color: line => (line.tick) ? (line.tick.value > Date.now() ? 'rgba(0,0,0,.25)' : 'rgba(0,0,0,.75)') : ''
+					color: 'rgba(0,0,0,.5)'
 				}
 			}
 		}
@@ -66,6 +92,42 @@ const wxchart = new Chart(chart_ctx, {
 });
 
 const mb2inHg = mb => Number((Math.round(1000 * mb * 0.0295301) / 1000));
+
+function tempGradient(ctx, chartArea){
+	const chartWidth = chartArea.right - chartArea.left;
+	const chartHeight = chartArea.bottom - chartArea.top;
+
+	if(!temp_grad || chart_w !== chartWidth || chart_h !== chartHeight){
+		chart_w = chartWidth;
+		chart_h = chartHeight;
+		temp_grad = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+		temp_grad.addColorStop(1, 'rgba(255,0,0,.5'); //red
+		temp_grad.addColorStop(0.8, 'rgba(255,128,0,.5'); //orange
+		temp_grad.addColorStop(0.7, 'rgba(0,255,0,.5'); //green
+		temp_grad.addColorStop(0.35, 'rgba(0,128,255,.6'); //blue
+		temp_grad.addColorStop(0.32, 'rgba(0,255,255,.8'); //cyan
+		temp_grad.addColorStop(0, 'rgba(255,255,255,1'); //white
+	}
+	
+	return temp_grad;
+}
+
+function tempLabelGradient(ctx, chartArea){
+	const chartWidth = chartArea.right - chartArea.left;
+	const chartHeight = chartArea.bottom - chartArea.top;
+
+		chart_w = chartWidth;
+		chart_h = chartHeight;
+		temp_label_grad = ctx.createLinearGradient(0, 0, 1, 1);
+		temp_label_grad.addColorStop(1, 'rgba(255,0,0,.5'); //red
+		temp_label_grad.addColorStop(0.8, 'rgba(255,128,0,.5'); //orange
+		temp_label_grad.addColorStop(0.7, 'rgba(0,255,0,.5'); //green
+		temp_label_grad.addColorStop(0.35, 'rgba(0,128,255,.6'); //blue
+		temp_label_grad.addColorStop(0.32, 'rgba(0,255,255,.8'); //cyan
+		temp_label_grad.addColorStop(0, 'rgba(255,255,255,1'); //white
+	
+	return temp_label_grad;
+}
 
 function updateData(){
 	let body = document.body,
@@ -172,6 +234,7 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 
 			wxchart.update();
 			localStorage.lastFullUpdate = Date.now();
+			update_i = 0;
 		}).catch(error => {document.querySelector("#nfo").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
 };
 
@@ -223,21 +286,9 @@ function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
 getOC();
 
 //clock
-setInterval(() => {
-	wxdata.querySelector(".sun .time").innerText = format(Date.now(), 'HH:mm:ss');
-},(1000));
+setInterval(() => wxdata.querySelector(".sun .time").innerText = format(Date.now(), 'HH:mm:ss'), (1000));
 
-//refresh data periodically
-let update_i = 0;
-setInterval(() => {
-	//onecall endpoint has a lower rate limit so only use when necessary
-	if (++update_i >= (60 / updateInterval)){
-		update_i = 0;
-		getOC();
-	}else getWX();
+//refresh data
+setInterval(() => (++update_i >= (60 / updateInterval)) ? getOC() : getWX(), (updateInterval * 60 * 1000));
 
-}, (updateInterval * 60 * 1000));
-
-document.querySelector("body").addEventListener("click", function(){
-	document.documentElement.requestFullscreen();
-});
+document.querySelector("body").addEventListener("click", () => document.documentElement.requestFullscreen(), {once:true});
