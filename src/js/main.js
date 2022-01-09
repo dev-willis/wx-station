@@ -146,15 +146,21 @@ function updateData(){
 	else if(now > sunrise && now < (sunset - ((sunset - sunrise) / 2))) body.className = 'morn';
 	else body.className = 'eve';
 	
+	
+	//if moon doesn't set today, get set time for tomorrow
+	if(data.daily[0].moonset == 0) moonset.setTime(data.daily[1].moonset * 1000);
+	
 	//show next sun/moon rise if already set
 	if(now > sunset) sunrise.setTime(data.daily[1].sunrise * 1000);
 	if(now > moonset) moonrise.setTime(data.daily[1].moonrise * 1000);
 
-	//figure out the moon the phase
-	if(data.daily[0].moon_phase == 0) phase = '<small>NEW</small>';
-	else if(data.daily[0].moon_phase == .5) phase = '<small>FULL</small>';
-	else if(data.daily[0].moon_phase < .5) phase = '+' + Math.round(data.daily[0].moon_phase * 200)+'%';
-	else if(data.daily[0].moon_phase > .5) phase = '-' + Math.round((1 - data.daily[0].moon_phase) * 200)+'%';
+	//convert moon the phase
+	let p = data.daily[0].moon_phase;
+	if(p == 0) phase = '<small>NEW</small>';
+	else if(p == .5) phase = '<small>FULL</small>';
+	else if(p == .25 || p == .75) phase = '<small>HALF</small>';
+	else if(p < .5) phase = '+' + Math.round(p * 200)+'%';
+	else if(p > .5) phase = '-' + Math.round((1 - p) * 200)+'%';
 
 	//populate the data
 	wxdata.querySelector(".temp .current").innerText = Math.round(data.current.temp);
@@ -169,9 +175,10 @@ function updateData(){
 	wxdata.querySelector(".moon .rise").innerHTML = format(moonrise, 'HH:mm') + '<small>(' + (now > moonrise ? '+' : '-') + formatDistanceToNowStrict(moonrise) + ')</small>';
 	wxdata.querySelector(".moon .set").innerHTML = format(moonset, 'HH:mm') + '<small>(' + (now > moonset ? '+' : '-') + formatDistanceToNowStrict(moonset) + ')</small>';
 	wxdata.querySelector(".moon .phase").innerHTML = phase;
-
-	for(let i=0; i<12; i++)
-		if(data.hourly[i].weather[0].id < 800) precip = true;
+	
+	precip = !!document.getElementById('wxmap');
+	/*for(let i=0; i<12; i++)
+		if(data.hourly[i].weather[0].id < 800) precip = true;*/
 	
 	if(precip){
 		getMap();
@@ -254,28 +261,38 @@ function getWX(lat = 36.16754647878633, lon = -86.21153419024921){
 }
 
 function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
-
-	return;
-
 	let n = 2 ** zoom,
 		xtile = Math.floor((lon + 180) / 360 * n),
 		ytile = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n),
-		canvas = document.querySelector("#map canvas"),
-		ctx = canvas.getContext("2d"),
+		wxcanvas = document.querySelector("#wxmap canvas"),
+		osmcanvas = document.querySelector('#osmap canvas'),
+		wxctx = wxcanvas.getContext("2d"),
+		osmctx = osmcanvas.getContext("2d"),
 		tilesize = 256;
 
-	canvas.width = window.innerWidth;
-	canvas.height = window.innerHeight;
+	wxcanvas.width = window.innerWidth;
+	wxcanvas.height = window.innerHeight;
 
 	for(let y=0; y<3; y++){
 		for(let x=0; x<4; x++){
+			fetch(new Request('https://tile.openstreetmap.org/'+zoom+'/'+(xtile + x)+'/'+(ytile + y)+'.png'))
+				.then(response => response.blob())
+				.then(blob => {
+					let imgURL = URL.createObjectURL(blob),
+						img = new Image(tilesize,tilesize);
+
+					img.onload = function(){osmctx.drawImage(this,x*tilesize,y*tilesize);}
+
+					img.src = imgURL;
+				});
+			
 			fetch(new Request("https://tile.openweathermap.org/map/precipitation_new/"+zoom+"/"+(xtile + x)+"/"+(ytile + y)+".png?appid="+apikey))
 				.then(response => response.blob())
 				.then(blob => {
 					let imgURL = URL.createObjectURL(blob),
 						img = new Image(tilesize,tilesize);
 
-					img.onload = function(){ctx.drawImage(this,x*tilesize,y*tilesize);}
+					img.onload = function(){wxctx.drawImage(this,x*tilesize,y*tilesize);}
 
 					img.src = imgURL;
 				});

@@ -19,7 +19,7 @@
 		"deploy:js": "npm run terse && node deploy.cjs \"/dist/js\" \"%npm_package_config_assets%/js\"",
 		"deploy:all": "npm run terse && npm run scss && npm run prefix && node deploy.cjs \"/dist\" \"%npm_package_config_assets%\"",
 		"watch:css": "onchange -k \"src/scss/*.scss\" -- npm run deploy:css",
-		"watch:js": "onchange -k \"src/javascript/*.js\" -- npm run deploy:js",
+		"watch:js": "onchange -k \"src/js/*.js\" -- npm run build",
 		"watch:all": "concurrently \"npm run watch:css\" \"npm run watch:js\""
 	},
 	"dependencies": {

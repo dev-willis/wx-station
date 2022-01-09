@@ -1,0 +1,19 @@
+{
+    "name": "Ravenflight Weather",
+    "short_name": "RWX",
+    "icons": [
+        {
+            "src": "/android-chrome-192x192.png?v=dLnzAGqzzA",
+            "sizes": "192x192",
+            "type": "image/png"
+        },
+        {
+            "src": "/android-chrome-256x256.png?v=dLnzAGqzzA",
+            "sizes": "256x256",
+            "type": "image/png"
+        }
+    ],
+    "theme_color": "#000",
+    "background_color": "#000",
+    "display": "standalone"
+}
