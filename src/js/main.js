@@ -112,23 +112,6 @@ function tempGradient(ctx, chartArea){
 	return temp_grad;
 }
 
-function tempLabelGradient(ctx, chartArea){
-	const chartWidth = chartArea.right - chartArea.left;
-	const chartHeight = chartArea.bottom - chartArea.top;
-
-		chart_w = chartWidth;
-		chart_h = chartHeight;
-		temp_label_grad = ctx.createLinearGradient(0, 0, 1, 1);
-		temp_label_grad.addColorStop(1, 'rgba(255,0,0,.5'); //red
-		temp_label_grad.addColorStop(0.8, 'rgba(255,128,0,.5'); //orange
-		temp_label_grad.addColorStop(0.7, 'rgba(0,255,0,.5'); //green
-		temp_label_grad.addColorStop(0.35, 'rgba(0,128,255,.6'); //blue
-		temp_label_grad.addColorStop(0.32, 'rgba(0,255,255,.8'); //cyan
-		temp_label_grad.addColorStop(0, 'rgba(255,255,255,1'); //white
-	
-	return temp_label_grad;
-}
-
 function updateData(){
 	let body = document.body,
 		sunrise = new Date(data.current.sunrise * 1000),
