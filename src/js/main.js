@@ -9,7 +9,7 @@ let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
 	wxdata = document.querySelector("#wxdata"),
 	chart_ctx = document.querySelector("#wxchart canvas").getContext("2d"),
 	data = new Object(),
-	chart_w, chart_h, temp_grad, temp_label_grad;
+	chart_w, chart_h, temp_grad;
 
 const wxchart = new Chart(chart_ctx, {
 	type:"line",
@@ -67,6 +67,12 @@ const wxchart = new Chart(chart_ctx, {
 			y1:{
 				min:0,
 				max:100,
+				grid:{
+					color:function(context){
+						if(context.tick.value == 20) return 'rgba(128,128,128,.5)';
+						else return 'rgba(0,0,0,.5)';
+					  },
+				},
 				ticks: {color:'rgb(224,224,224)'}
 			},
 			y2:{
@@ -77,15 +83,19 @@ const wxchart = new Chart(chart_ctx, {
 			},
 			x:{
 				type:"time",
-				ticks: {color:'rgb(192,192,192)'},
 				time:{
 					unit:'hour',
 					displayFormats:{hour:'HH'}
 				},
 				grid:{
-					display:true,
-					color: 'rgba(0,0,0,.5)'
-				}
+					color:function(context){
+						if(!context.tick) return;
+
+						if(context.tick.value == new Date().getHours()) return 'rgb(128,128,128)';
+						else return 'rgba(0,0,0,.5)';
+					  }
+				},
+				ticks: {color:'rgb(224,224,224)'}
 			}
 		}
 	}
@@ -131,7 +141,7 @@ function updateData(){
 	
 	
 	//if moon doesn't set today, get set time for tomorrow
-	if(data.daily[0].moonset == 0) moonset.setTime(data.daily[1].moonset * 1000);
+	if(data.daily[0].moonset == 0 || moonset < moonrise) moonset.setTime(data.daily[1].moonset * 1000);
 	
 	//show next sun/moon rise if already set
 	if(now > sunset) sunrise.setTime(data.daily[1].sunrise * 1000);
