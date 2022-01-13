@@ -1,14 +1,16 @@
 import Chart from 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
-import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
+import { differenceInMinutes } from 'date-fns';
 import format from 'date-fns/format'
+import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
 
 let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
 	updateInterval = 10, //in minutes
 	update_i = 0,
 	wxdata = document.querySelector("#wxdata"),
 	chart_ctx = document.querySelector("#wxchart canvas").getContext("2d"),
-	data = new Object(),
+	last = localStorage.last ? JSON.parse(localStorage.last) : {update:0,sunrise:false,sunset:false,moonrise:false,moonset:false},
+	data = {},
 	chart_w, chart_h, temp_grad;
 
 const wxchart = new Chart(chart_ctx, {
@@ -90,8 +92,8 @@ const wxchart = new Chart(chart_ctx, {
 				grid:{
 					color:function(context){
 						if(!context.tick) return;
-
-						if(context.tick.value == new Date().getHours()) return 'rgb(128,128,128)';
+						
+						if(new Date(context.tick.value).getHours() == new Date().getHours()) return 'rgba(128,128,128,.5)';
 						else return 'rgba(0,0,0,.5)';
 					  }
 				},
@@ -122,40 +124,68 @@ function tempGradient(ctx, chartArea){
 	return temp_grad;
 }
 
+function astroStrTpl(strs, cur, prev){
+	let now = new Date(),
+		delta = '';
+	
+	if(!prev){
+		prev.setTime(prev.getTime() + 24 * 60 * 60 * 1000);
+		delta = `<span>&Delta;${differenceInMinutes(prev, cur)}</span>`;
+	}
+
+	return `${format(cur, 'HH:mm')} ${delta}
+	<small>(${(now > cur ? '+' : '-')}${formatDistanceToNowStrict(cur)})</small>`;
+}
+
 function updateData(){
 	let body = document.body,
-		sunrise = new Date(data.current.sunrise * 1000),
-		sunset = new Date(data.current.sunset * 1000),
-		moonrise = new Date(data.daily[0].moonrise * 1000),
-		moonset = new Date(data.daily[0].moonset * 1000),
+		sun = {
+			rise : new Date(data.current.sunrise * 1000),
+			set : new Date(data.current.sunset * 1000),
+			rise_str : function(){
+				return astroStrTpl`${this.rise}${last.sunrise}`
+			},
+			set_str : function(){
+				return astroStrTpl`${this.set}${last.sunset}`
+			},
+		},
+		moon = {
+			rise : new Date(data.daily[0].moonrise * 1000),
+			set : new Date(data.daily[0].moonset * 1000),
+			rise_str : function(){
+				return astroStrTpl`${this.rise}${last.moonrise}`
+			},
+			set_str : function(){
+				return astroStrTpl`${this.set}${last.moonset}`
+			},
+			phase : () => {
+							let p = data.daily[0].moon_phase;
+							
+							if(p == 0) return '<small>NEW</small>';
+							else if(p == .5) return '<small>FULL</small>';
+							//else if(p == .25 || p == .75) return '<small>HALF</small>';
+							else if(p < .5) return '+' + Math.round(p * 200) + '%';
+							else if(p > .5) return '-' + Math.round((1 - p) * 200) + '%';
+			}
+		},
 		now = new Date(),
 		precip = false,
-		phase = '',
 		nfo = '';
 
 	//set display theme
-	if(now < sunrise) body.className = 'predawn';
-	else if(now > sunset) body.className = 'night';
-	else if(now > sunrise && now < (sunset - ((sunset - sunrise) / 2))) body.className = 'morn';
+	if(now < sun.rise) body.className = 'predawn';
+	else if(now > sun.set) body.className = 'night';
+	else if(now > sun.rise && now < (sun.set - ((sun.set - sun.rise) / 2))) body.className = 'morn';
 	else body.className = 'eve';
 	
-	
 	//if moon doesn't set today, get set time for tomorrow
-	if(data.daily[0].moonset == 0 || moonset < moonrise) moonset.setTime(data.daily[1].moonset * 1000);
+	if(data.daily[0].moonset == 0 || moon.set < moon.rise) moon.set.setTime(data.daily[1].moonset * 1000);
 	
 	//show next sun/moon rise if already set
-	if(now > sunset) sunrise.setTime(data.daily[1].sunrise * 1000);
-	if(now > moonset) moonrise.setTime(data.daily[1].moonrise * 1000);
+	if(now > sun.set) sun.rise.setTime(data.daily[1].sunrise * 1000);
+	if(now > moon.set) moon.rise.setTime(data.daily[1].moonrise * 1000);
 
-	//convert moon the phase
-	let p = data.daily[0].moon_phase;
-	if(p == 0) phase = '<small>NEW</small>';
-	else if(p == .5) phase = '<small>FULL</small>';
-	else if(p == .25 || p == .75) phase = '<small>HALF</small>';
-	else if(p < .5) phase = '+' + Math.round(p * 200)+'%';
-	else if(p > .5) phase = '-' + Math.round((1 - p) * 200)+'%';
-
-	//populate the data
+	//populate the display
 	wxdata.querySelector(".temp .current").innerText = Math.round(data.current.temp);
 	wxdata.querySelector(".temp .min").innerText = Math.round(data.daily[0].temp.min);
 	wxdata.querySelector(".temp .max").innerText = Math.round(data.daily[0].temp.max);
@@ -163,11 +193,11 @@ function updateData(){
 	wxdata.querySelector(".pressure").innerText = mb2inHg(data.current.pressure).toFixed(2);
 	wxdata.querySelector(".dew_point").innerText = Math.round(data.current.dew_point);
 	wxdata.querySelector(".sun .uvi").innerText = data.current.uvi;
-	wxdata.querySelector(".sun .rise").innerHTML = format(sunrise, 'HH:mm') + '<small>(' + (now > sunrise ? '+' : '-') + formatDistanceToNowStrict(sunrise) + ')</small>';
-	wxdata.querySelector(".sun .set").innerHTML = format(sunset, 'HH:mm') + '<small>(' + (now > sunset ? '+' : '-') + formatDistanceToNowStrict(sunset) + ')</small>';
-	wxdata.querySelector(".moon .rise").innerHTML = format(moonrise, 'HH:mm') + '<small>(' + (now > moonrise ? '+' : '-') + formatDistanceToNowStrict(moonrise) + ')</small>';
-	wxdata.querySelector(".moon .set").innerHTML = format(moonset, 'HH:mm') + '<small>(' + (now > moonset ? '+' : '-') + formatDistanceToNowStrict(moonset) + ')</small>';
-	wxdata.querySelector(".moon .phase").innerHTML = phase;
+	wxdata.querySelector(".sun .rise").innerHTML = sun.rise_str();
+	wxdata.querySelector(".sun .set").innerHTML = sun.set_str();
+	wxdata.querySelector(".moon .rise").innerHTML = moon.rise_str();
+	wxdata.querySelector(".moon .set").innerHTML = moon.set_str();
+	wxdata.querySelector(".moon .phase").innerHTML = moon.phase();
 	
 	precip = !!document.getElementById('wxmap');
 	/*for(let i=0; i<12; i++)
@@ -187,13 +217,25 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 	fetch(new Request('https://api.openweathermap.org/data/2.5/onecall?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
 		.then(response => response.json())
 		.then(json => {
+			//update last astro data
+			
+			if('current' in data){
+				if(json.current.sunrise > data.current.sunrise){
+					last.sunrise = new Date(data.current.sunrise * 1000);
+					last.sunset = new Date(data.current.sunset * 1000);
+					last.moonrise = new Date(data.current.moonrise * 1000);
+					last.moonset = new Date(data.current.moonset * 1000);
+				}
+			}
+
 			Object.assign(data,json);
 
 			updateData();
 			
 			let logdata = {"temp": data.current.temp, "humidity": data.current.humidity, "pressure": data.current.pressure},
-				wxlog = new Array();
-
+				wxlog = new Array(),
+				now = new Date();
+			
 			//remove old log entries and add the rest to an array
 			Object.entries(localStorage).forEach(([key, val]) => {
 				if(parseInt(key)){
@@ -205,7 +247,8 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 				}
 			});
 			
-			if(parseInt(localStorage.lastFullUpdate) < Date.now() - 30 * 60 * 1000) localStorage.setItem(Date.now(), JSON.stringify(logdata));
+			if(last.update < Date.now() - 30 * 60 * 1000) localStorage.setItem(Date.now(), JSON.stringify(logdata));
+			
 			wxlog.sort((a, b) => parseInt(a) - parseInt(b));
 
 			wxchart.data.datasets[0].data = [];
@@ -233,8 +276,10 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			});
 
 			wxchart.update();
-			localStorage.lastFullUpdate = Date.now();
+
 			update_i = 0;
+			last.update = Date.now();
+			localStorage.last = JSON.stringify(last);
 		}).catch(error => {document.querySelector("#nfo").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
 };
 

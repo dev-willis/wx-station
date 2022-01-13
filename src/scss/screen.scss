@@ -44,7 +44,10 @@ body{background:no-repeat center; background-size:cover;
 			}
 			.astro{grid-column:3 / 5; display:flex; flex-wrap:wrap; position:relative; border:0;
 				&::before{display:block; position:absolute; left:50%; transform:translateX(-50%); width:50%; text-align:center; font-size:.75em; color:$gr-l;}
-				span::before{transform:translate(-50%, .67em);}
+				span{
+					&::before{transform:translate(-50%, .67em);}
+					span{font-weight:100; font-size:.67em;}
+				}
 			}
 			.sun{align-items:baseline; padding-top:0;
 				&::before{content:'sun'; bottom:calc(.67em - 1px); border-bottom:1px solid $bdrclr;}
