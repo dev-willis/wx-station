@@ -1,6 +1,5 @@
 import Chart from 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
-import { differenceInMinutes } from 'date-fns';
 import format from 'date-fns/format'
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
 
@@ -9,9 +8,16 @@ let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
 	update_i = 0,
 	wxdata = document.querySelector("#wxdata"),
 	chart_ctx = document.querySelector("#wxchart canvas").getContext("2d"),
-	last = localStorage.last ? JSON.parse(localStorage.last) : {update:0,sunrise:false,sunset:false,moonrise:false,moonset:false},
+	last = {update:0, sunrise:0, sunset:0, moonrise:0, moonset:0},
 	data = {},
 	chart_w, chart_h, temp_grad;
+
+//initialize last object
+if(localStorage.last) last = JSON.parse(localStorage.last);
+last.sunrise = new Date(last.sunrise);
+last.sunset = new Date(last.sunset);
+last.moonrise = new Date(last.moonrise);
+last.moonset = new Date(last.moonset);
 
 const wxchart = new Chart(chart_ctx, {
 	type:"line",
@@ -124,24 +130,29 @@ function tempGradient(ctx, chartArea){
 	return temp_grad;
 }
 
-function astroStrTpl(strs, cur, prev){
-	let now = new Date(),
-		delta = '';
+function astroStrTpl(strs, current, prev){
+	let delta = Math.round(current - prev - 24 * 60 * 60 * 1000) / 1000,
+		sign = delta < 0 ? '-' : '',
+		m = Math.abs(Math.trunc(delta / 60)),
+		s = Math.abs(delta % 60),
+		now = new Date(),
+		str = '';
 	
-	if(!prev){
-		prev.setTime(prev.getTime() + 24 * 60 * 60 * 1000);
-		delta = `<span>&Delta;${differenceInMinutes(prev, cur)}</span>`;
+	if(prev && prev.getFullYear() > 2000 && prev < current){ //only show delta if it's defined and makes sense
+		str = `<span>&Delta; ${sign}${m}:${s}</span>`
 	}
 
-	return `${format(cur, 'HH:mm')} ${delta}
-	<small>(${(now > cur ? '+' : '-')}${formatDistanceToNowStrict(cur)})</small>`;
+	return `${format(current, 'HH:mm')} ${str} <small>(${(now > current ? '+' : '-')}${formatDistanceToNowStrict(current)})</small>`;
 }
 
 function updateData(){
-	let body = document.body,
+	let nfo = '',
+		precip = false,
+		now = new Date(),
+		body = document.body,
 		sun = {
-			rise : new Date(data.current.sunrise * 1000),
-			set : new Date(data.current.sunset * 1000),
+			rise : new Date(last.sunrise.getTime()),
+			set : new Date(last.sunset.getTime()),
 			rise_str : function(){
 				return astroStrTpl`${this.rise}${last.sunrise}`
 			},
@@ -163,27 +174,37 @@ function updateData(){
 							
 							if(p == 0) return '<small>NEW</small>';
 							else if(p == .5) return '<small>FULL</small>';
-							//else if(p == .25 || p == .75) return '<small>HALF</small>';
 							else if(p < .5) return '+' + Math.round(p * 200) + '%';
 							else if(p > .5) return '-' + Math.round((1 - p) * 200) + '%';
 			}
-		},
-		now = new Date(),
-		precip = false,
-		nfo = '';
-
+		};
+	
 	//set display theme
-	if(now < sun.rise) body.className = 'predawn';
-	else if(now > sun.set) body.className = 'night';
-	else if(now > sun.rise && now < (sun.set - ((sun.set - sun.rise) / 2))) body.className = 'morn';
+	if(now < data.current.sunrise * 1000) body.className = 'predawn';
+	else if(now > data.current.sunset * 1000) body.className = 'night';
+	else if(now > data.current.sunrise * 1000 && now < (data.current.sunset * 1000 - ((data.current.sunset * 1000 - data.current.sunrise * 1000) / 2))) body.className = 'morn';
 	else body.className = 'eve';
 	
-	//if moon doesn't set today, get set time for tomorrow
-	if(data.daily[0].moonset == 0 || moon.set < moon.rise) moon.set.setTime(data.daily[1].moonset * 1000);
-	
-	//show next sun/moon rise if already set
-	if(now > sun.set) sun.rise.setTime(data.daily[1].sunrise * 1000);
-	if(now > moon.set) moon.rise.setTime(data.daily[1].moonrise * 1000);
+	//adjust rise/set times and log previous
+	if(now > sun.rise){
+		last.sunset.setTime(sun.set.getTime());
+		sun.set.setTime(data.current.sunset * 1000);
+	}
+	if(now > sun.set){
+		last.sunrise.setTime(sun.rise.getTime());
+		sun.rise.setTime(data.daily[1].sunrise * 1000);
+	}
+	if(now > moon.rise){
+		//if moon doesn't set today, get set time for tomorrow
+		if(data.daily[0].moonset == 0 || moon.set < moon.rise) moon.set.setTime(data.daily[1].moonset * 1000);
+
+		last.moonset.setTime(moon.set.getTime());
+		moon.set.setTime(data.daily[1].moonset * 1000);
+	}
+	if(now > moon.set){
+		last.moonrise.setTime(moon.rise.getTime());
+		moon.rise.setTime(data.daily[1].moonrise * 1000);
+	}
 
 	//populate the display
 	wxdata.querySelector(".temp .current").innerText = Math.round(data.current.temp);
@@ -209,6 +230,15 @@ function updateData(){
 		else if(Math.floor(data.hourly[1].weather[0].id / 100) == 7) nfo += data.hourly[1].weather[0].main;
 	}
 
+	if(localStorage.lastFullUpdate){
+		localStorage.removeItem('lastFullUpdate');
+		nfo += 'removed lastFullUpdate, ';
+	}
+	if(localStorage.lastPartialUpdate){
+		localStorage.removeItem('lastPartialUpdate');
+		nfo += 'removed lastPartialUpdate, ';
+	}
+	
 	document.querySelector('#as-of').innerText = format(Date.now(), 'HH:mm');
 	document.querySelector('#nfo').innerHTML = nfo;
 }
@@ -217,40 +247,27 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 	fetch(new Request('https://api.openweathermap.org/data/2.5/onecall?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
 		.then(response => response.json())
 		.then(json => {
-			//update last astro data
-			
-			if('current' in data){
-				if(json.current.sunrise > data.current.sunrise){
-					last.sunrise = new Date(data.current.sunrise * 1000);
-					last.sunset = new Date(data.current.sunset * 1000);
-					last.moonrise = new Date(data.current.moonrise * 1000);
-					last.moonset = new Date(data.current.moonset * 1000);
-				}
-			}
-
 			Object.assign(data,json);
 
 			updateData();
 			
 			let logdata = {"temp": data.current.temp, "humidity": data.current.humidity, "pressure": data.current.pressure},
-				wxlog = new Array(),
-				now = new Date();
+				wxlog = new Array();
 			
 			//remove old log entries and add the rest to an array
 			Object.entries(localStorage).forEach(([key, val]) => {
 				if(parseInt(key)){
-					let dataDate = new Date(parseInt(key)),
-						cutoffDate = new Date(Date.now() - (48 * 60 * 60 * 1000));
+					let entry_date = new Date(parseInt(key)),
+						cutoff_date = new Date(Date.now() - (48 * 60 * 60 * 1000));
 
-					if(dataDate < cutoffDate) localStorage.removeItem(key);
+					if(entry_date < cutoff_date) localStorage.removeItem(key);
 					else wxlog.push([key,val]);
 				}
 			});
-			
-			if(last.update < Date.now() - 30 * 60 * 1000) localStorage.setItem(Date.now(), JSON.stringify(logdata));
-			
 			wxlog.sort((a, b) => parseInt(a) - parseInt(b));
 
+			if(last.update < Date.now() - 30 * 60 * 1000) localStorage.setItem(Date.now(), JSON.stringify(logdata));
+			
 			wxchart.data.datasets[0].data = [];
 			wxchart.data.datasets[1].data = [];
 			wxchart.data.datasets[2].data = [];
