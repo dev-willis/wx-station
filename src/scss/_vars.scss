@@ -14,10 +14,10 @@ $bdrwidth:1px;
 $maxw:1920px;
 
 $bk:hsl(0, 0%, 0%);
-$gr-d:hsl(0, 0%, 20%);
+$gr-d:hsl(0, 0%, 22%);
 $gr:hsl(0, 0%, 50%);
-$gr-l:hsl(0, 0%, 70%);
-$gr-f:hsl(0, 0%, 80%);
+$gr-l:hsl(0, 0%, 77%);
+$gr-f:hsl(0, 0%, 84%);
 $wh:hsl(0, 0%, 100%);
 
 $txtclr:$gr-f;
@@ -26,7 +26,7 @@ $linkclr:blue;
 $linkclr-hov:color.scale($linkclr,$whiteness:50%);
 $linkclr_alt:red;
 $linkclr_alt-hov:color.scale($linkclr_alt,$whiteness:50%);
-$bdrclr:$gr;
+$bdrclr:$bk;
 $bdrclr_alt:$wh;
 $bgclr:$gr-d;
 $bgclr_alt:$bk;

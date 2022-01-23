@@ -10,14 +10,49 @@ let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
 	chart_ctx = document.querySelector("#wxchart canvas").getContext("2d"),
 	last = {update:0, sunrise:0, sunset:0, moonrise:0, moonset:0},
 	data = {},
-	chart_w, chart_h, temp_grad;
+	chart_w, chart_h, temp_grad,
+	sun = {
+		rise : null,
+		set : null,
+		rise_str : function(){
+			return astroStrTpl`${this.rise}${last.sunrise}`
+		},
+		set_str : function(){
+			return astroStrTpl`${this.set}${last.sunset}`
+		},
+	},
+	moon = {
+		rise : null,
+		set : null,
+		rise_str : function(){
+			return astroStrTpl`${this.rise}${last.moonrise}`
+		},
+		set_str : function(){
+			return astroStrTpl`${this.set}${last.moonset}`
+		},
+		phase : () => {
+						let p = data.daily[0].moon_phase;
+						
+						if(p == 0) return '<small>NEW</small>';
+						else if(p == .5) return '<small>FULL</small>';
+						else if(p < .5) return '+' + Math.round(p * 200) + '%';
+						else if(p > .5) return '-' + Math.round((1 - p) * 200) + '%';
+		}
+	};
 
 //initialize last object
 if(localStorage.last) last = JSON.parse(localStorage.last);
+last.update = new Date(last.update);
 last.sunrise = new Date(last.sunrise);
 last.sunset = new Date(last.sunset);
 last.moonrise = new Date(last.moonrise);
 last.moonset = new Date(last.moonset);
+
+//initialize astro objects
+sun.rise = new Date(last.sunrise.getTime());
+sun.set = new Date(last.sunset.getTime());
+moon.rise = new Date(last.moonrise.getTime());
+moon.set = new Date(last.moonset.getTime());
 
 const wxchart = new Chart(chart_ctx, {
 	type:"line",
@@ -132,80 +167,62 @@ function tempGradient(ctx, chartArea){
 
 function astroStrTpl(strs, current, prev){
 	let delta = Math.round(current - prev - 24 * 60 * 60 * 1000) / 1000,
-		sign = delta < 0 ? '-' : '',
 		m = Math.abs(Math.trunc(delta / 60)),
 		s = Math.abs(delta % 60),
+		sign = delta < 0 ? '-' : '',
 		now = new Date(),
-		str = '';
+		deltastr = '';
 	
 	if(prev && prev.getFullYear() > 2000 && prev < current){ //only show delta if it's defined and makes sense
-		str = `<span>&Delta; ${sign}${m}:${s}</span>`
+		deltastr = `<span>&Delta; ${sign}${m}:${s}</span>`
 	}
 
-	return `${format(current, 'HH:mm')} ${str} <small>(${(now > current ? '+' : '-')}${formatDistanceToNowStrict(current)})</small>`;
+	return `${format(current, 'HH:mm')} ${deltastr} <small>(${(now > current ? '+' : '-')}${formatDistanceToNowStrict(current)})</small>`;
 }
 
 function updateData(){
-	let nfo = '',
-		precip = false,
+	let body = document.body,
 		now = new Date(),
-		body = document.body,
-		sun = {
-			rise : new Date(last.sunrise.getTime()),
-			set : new Date(last.sunset.getTime()),
-			rise_str : function(){
-				return astroStrTpl`${this.rise}${last.sunrise}`
-			},
-			set_str : function(){
-				return astroStrTpl`${this.set}${last.sunset}`
-			},
-		},
-		moon = {
-			rise : new Date(data.daily[0].moonrise * 1000),
-			set : new Date(data.daily[0].moonset * 1000),
-			rise_str : function(){
-				return astroStrTpl`${this.rise}${last.moonrise}`
-			},
-			set_str : function(){
-				return astroStrTpl`${this.set}${last.moonset}`
-			},
-			phase : () => {
-							let p = data.daily[0].moon_phase;
-							
-							if(p == 0) return '<small>NEW</small>';
-							else if(p == .5) return '<small>FULL</small>';
-							else if(p < .5) return '+' + Math.round(p * 200) + '%';
-							else if(p > .5) return '-' + Math.round((1 - p) * 200) + '%';
-			}
-		};
-	
+		precip = false,
+		nfo = '',
+		cur_rise = data.current.sunrise * 1000,
+		cur_set = data.current.sunset * 1000,
+		cur_mrise = data.daily[0].moonrise * 1000,
+		cur_mset = data.daily[0].moonset * 1000;
+		
+
 	//set display theme
-	if(now < data.current.sunrise * 1000) body.className = 'predawn';
-	else if(now > data.current.sunset * 1000) body.className = 'night';
-	else if(now > data.current.sunrise * 1000 && now < (data.current.sunset * 1000 - ((data.current.sunset * 1000 - data.current.sunrise * 1000) / 2))) body.className = 'morn';
+	if(now < cur_rise) body.className = 'predawn';
+	else if(now > cur_set) body.className = 'night';
+	else if(now > cur_rise && now < (cur_set - ((cur_set - cur_rise) / 2))) body.className = 'morn';
 	else body.className = 'eve';
 	
 	//adjust rise/set times and log previous
-	if(now > sun.rise){
+	if(sun.rise < cur_rise) sun.rise.setTime(now > cur_set ? data.daily[1].sunrise * 1000 : cur_rise);
+	if(sun.rise > cur_rise) last.sunrise.setTime(cur_rise);
+
+	if(sun.set < cur_set && now > cur_rise){
 		last.sunset.setTime(sun.set.getTime());
-		sun.set.setTime(data.current.sunset * 1000);
+		sun.set.setTime(cur_set);
 	}
-	if(now > sun.set){
-		last.sunrise.setTime(sun.rise.getTime());
-		sun.rise.setTime(data.daily[1].sunrise * 1000);
+	
+	if(cur_mrise == 0){ //moon does not rise today
+		cur_mrise = data.daily[1].moonrise * 1000;
+		nfo += '| moon rise 0 |';
 	}
-	if(now > moon.rise){
-		//if moon doesn't set today, get set time for tomorrow
-		if(data.daily[0].moonset == 0 || moon.set < moon.rise) moon.set.setTime(data.daily[1].moonset * 1000);
-
+	if(cur_mset == 0){ //moon does not set today
+		cur_mset = data.daily[1].moonset * 1000;
+		nfo += '| moon set 0 |'
+	}
+	
+	if(moon.rise < cur_mrise) moon.rise.setTime(now > cur_mset ? data.daily[1].moonrise * 1000 : cur_mrise);
+	if(moon.rise > cur_mrise) last.moonrise.setTime(cur_mrise);
+	
+	if(moon.set < cur_mset && now > cur_mrise){
 		last.moonset.setTime(moon.set.getTime());
-		moon.set.setTime(data.daily[1].moonset * 1000);
+		moon.set.setTime(cur_mset);
 	}
-	if(now > moon.set){
-		last.moonrise.setTime(moon.rise.getTime());
-		moon.rise.setTime(data.daily[1].moonrise * 1000);
-	}
-
+	
 	//populate the display
 	wxdata.querySelector(".temp .current").innerText = Math.round(data.current.temp);
 	wxdata.querySelector(".temp .min").innerText = Math.round(data.daily[0].temp.min);
@@ -229,17 +246,8 @@ function updateData(){
 		if(Math.floor(data.hourly[0].weather[0].id / 100) == 7) nfo += data.hourly[0].weather[0].main;
 		else if(Math.floor(data.hourly[1].weather[0].id / 100) == 7) nfo += data.hourly[1].weather[0].main;
 	}
-
-	if(localStorage.lastFullUpdate){
-		localStorage.removeItem('lastFullUpdate');
-		nfo += 'removed lastFullUpdate, ';
-	}
-	if(localStorage.lastPartialUpdate){
-		localStorage.removeItem('lastPartialUpdate');
-		nfo += 'removed lastPartialUpdate, ';
-	}
 	
-	document.querySelector('#as-of').innerText = format(Date.now(), 'HH:mm');
+	document.querySelector('#as-of').innerText = format(now, 'HH:mm');
 	document.querySelector('#nfo').innerHTML = nfo;
 }
 
@@ -249,24 +257,27 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 		.then(json => {
 			Object.assign(data,json);
 
-			updateData();
-			
 			let logdata = {"temp": data.current.temp, "humidity": data.current.humidity, "pressure": data.current.pressure},
-				wxlog = new Array();
+				wxlog = new Array(),
+				now = new Date(),
+				low = null;
 			
 			//remove old log entries and add the rest to an array
 			Object.entries(localStorage).forEach(([key, val]) => {
 				if(parseInt(key)){
 					let entry_date = new Date(parseInt(key)),
-						cutoff_date = new Date(Date.now() - (48 * 60 * 60 * 1000));
-
+						cutoff_date = new Date(now - (48 * 60 * 60 * 1000));
+					
 					if(entry_date < cutoff_date) localStorage.removeItem(key);
 					else wxlog.push([key,val]);
 				}
 			});
 			wxlog.sort((a, b) => parseInt(a) - parseInt(b));
-
-			if(last.update < Date.now() - 30 * 60 * 1000) localStorage.setItem(Date.now(), JSON.stringify(logdata));
+			
+			if(last.update < now - 30 * 60 * 1000){
+				localStorage.setItem(now.getTime(), JSON.stringify(logdata));
+				console.log('logged', now, logdata);
+			}
 			
 			wxchart.data.datasets[0].data = [];
 			wxchart.data.datasets[1].data = [];
@@ -284,18 +295,24 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			});
 			
 			data.hourly.forEach(hour => {
-				let x = hour.dt * 1000;
+				let x = hour.dt * 1000,
+					nextrise = now < data.current.sunrise * 1000 ? data.current.sunrise * 1000 : data.daily[1].sunrise * 1000;
 
 				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(hour.pressure)});
 				wxchart.data.datasets[1].data.push({x: x, y: hour.humidity});
 				wxchart.data.datasets[2].data.push({x: x, y: hour.temp});
 				wxchart.data.datasets[3].data.push({x: x, y: (hour.pop * 100)});
+
+				if(x < nextrise && (low == null || hour.temp < low)) low = hour.temp;
 			});
 
+			data.daily[0].temp.min = low; //set to overnight low
+
+			updateData();
 			wxchart.update();
 
 			update_i = 0;
-			last.update = Date.now();
+			last.update.setTime(now.getTime());
 			localStorage.last = JSON.stringify(last);
 		}).catch(error => {document.querySelector("#nfo").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
 };
