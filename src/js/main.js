@@ -84,7 +84,6 @@ const wxchart = new Chart(chart_ctx, {
 					{ctx, chartArea} = chart;
 		
 				if(!chartArea) return;
-
 				return tempGradient(ctx, chartArea);
 			},
 			backgroundColor: function(context){
@@ -92,7 +91,6 @@ const wxchart = new Chart(chart_ctx, {
 					{ctx, chartArea} = chart;
 		
 				if(!chartArea) return;
-				
 				return ((context.raw) ? (context.raw.x < Date.now() ? tempGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,.5)');
 			}},
 		{
@@ -141,7 +139,6 @@ const wxchart = new Chart(chart_ctx, {
 				grid:{
 					color:function(context){
 						if(!context.tick) return;
-						
 						if(new Date(context.tick.value).getHours() == new Date().getHours()) return 'rgba(128,128,128,.5)';
 						else return 'rgba(0,0,0,.5)';
 					  }
@@ -221,21 +218,18 @@ function updateDisplay(){
 		cur_mset = wxdata.daily[1].moonset * 1000;
 		nfo += '| moon set 0 |'
 	}
-	console.log(last.moonrise,moon.rise,cur_mrise);
+	
 	if(moon.rise < cur_mrise){
 		last.moonrise.setTime(moon.rise.getTime());
 		moon.rise.setTime(cur_mrise);
-		console.log('*******',last.moonrise,moon.rise,cur_mrise);
 	}
 	if(now > cur_mset){
 		last.moonrise.setTime(cur_mrise);
 		moon.rise.setTime(wxdata.daily[1].moonrise * 1000);
-		console.log('=======',last.moonrise,moon.rise,cur_mrise);
 	}
 	if(moon.set < cur_mset && now > cur_mrise){
 		last.moonset.setTime(moon.set.getTime());
 		moon.set.setTime(cur_mset);
-		console.log('-------',last.moonset,moon.set,cur_mset);
 	}
 	
 	//populate the display
