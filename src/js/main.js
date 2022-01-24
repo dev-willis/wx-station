@@ -3,40 +3,48 @@ import 'chartjs-adapter-date-fns';
 import format from 'date-fns/format'
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
 
+
+//import timekeeper from 'timekeeper';
+//timekeeper.travel(Date.now() - 4 * 60 * 60 * 1000);
+
+
 let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
 	updateInterval = 10, //in minutes
-	update_i = 0,
-	wxdata = document.querySelector("#wxdata"),
+	chart_w, chart_h, temp_grad, update_i = 0,
 	chart_ctx = document.querySelector("#wxchart canvas").getContext("2d"),
-	last = {update:0, sunrise:0, sunset:0, moonrise:0, moonset:0},
-	data = {},
-	chart_w, chart_h, temp_grad,
+	wxdisplay = document.querySelector("#wxdisplay"),
+	body = document.body,
+	wxdata = {},
+	last = {
+		update:0, sunrise:0, sunset:0, moonrise:0, moonset:0,
+		temp:{
+			high:{
+				predicted:0,
+				recorded:0,
+				actual:0
+			},
+			low:{
+				predicted:0,
+				recorded:0,
+				actual:0
+			}}
+	},
 	sun = {
-		rise : null,
-		set : null,
-		rise_str : function(){
-			return astroStrTpl`${this.rise}${last.sunrise}`
-		},
-		set_str : function(){
-			return astroStrTpl`${this.set}${last.sunset}`
-		},
+		rise:null, set:null,
+		rise_str	: function(){return astroStrTpl`${this.rise}${last.sunrise}`},
+		set_str		: function(){return astroStrTpl`${this.set}${last.sunset}`},
 	},
 	moon = {
-		rise : null,
-		set : null,
-		rise_str : function(){
-			return astroStrTpl`${this.rise}${last.moonrise}`
-		},
-		set_str : function(){
-			return astroStrTpl`${this.set}${last.moonset}`
-		},
-		phase : () => {
-						let p = data.daily[0].moon_phase;
+		rise:null, set:null,
+		rise_str	: function(){return astroStrTpl`${this.rise}${last.moonrise}`},
+		set_str		: function(){return astroStrTpl`${this.set}${last.moonset}`},
+		phase		: () => {
+						let p = wxdata.daily[0].moon_phase;
 						
 						if(p == 0) return '<small>NEW</small>';
 						else if(p == .5) return '<small>FULL</small>';
-						else if(p < .5) return '+' + Math.round(p * 200) + '%';
-						else if(p > .5) return '-' + Math.round((1 - p) * 200) + '%';
+						else if(p < .5) return `+${Math.round(p * 200)}%`;
+						else if(p > .5) return `-${Math.round((1 - p) * 200)}%`;
 		}
 	};
 
@@ -144,7 +152,7 @@ const wxchart = new Chart(chart_ctx, {
 	}
 });
 
-const mb2inHg = mb => Number((Math.round(1000 * mb * 0.0295301) / 1000));
+const mb2inHg = mb => Number((Math.round(1000 * mb * 0.0295301) / 1000)).toFixed(2);
 
 function tempGradient(ctx, chartArea){
 	const chartWidth = chartArea.right - chartArea.left;
@@ -165,32 +173,26 @@ function tempGradient(ctx, chartArea){
 	return temp_grad;
 }
 
-function astroStrTpl(strs, current, prev){
-	let delta = Math.round(current - prev - 24 * 60 * 60 * 1000) / 1000,
+function astroStrTpl(strs, current, previous){
+	let delta = Math.round(current - previous - 24 * 60 * 60 * 1000) / 1000,
 		m = Math.abs(Math.trunc(delta / 60)),
 		s = Math.abs(delta % 60),
 		sign = delta < 0 ? '-' : '',
 		now = new Date(),
-		deltastr = '';
+		deltastr = previous < current ? `<span>&Delta; ${sign}${m > 0 ? m+'m:' : ''}${s}s</span>` : '';
 	
-	if(prev && prev.getFullYear() > 2000 && prev < current){ //only show delta if it's defined and makes sense
-		deltastr = `<span>&Delta; ${sign}${m}:${s}</span>`
-	}
-
 	return `${format(current, 'HH:mm')} ${deltastr} <small>(${(now > current ? '+' : '-')}${formatDistanceToNowStrict(current)})</small>`;
 }
 
-function updateData(){
-	let body = document.body,
-		now = new Date(),
+function updateDisplay(){
+	let now = new Date(),
 		precip = false,
 		nfo = '',
-		cur_rise = data.current.sunrise * 1000,
-		cur_set = data.current.sunset * 1000,
-		cur_mrise = data.daily[0].moonrise * 1000,
-		cur_mset = data.daily[0].moonset * 1000;
+		cur_rise = wxdata.current.sunrise * 1000,
+		cur_set = wxdata.current.sunset * 1000,
+		cur_mrise = wxdata.daily[0].moonrise * 1000,
+		cur_mset = wxdata.daily[0].moonset * 1000;
 		
-
 	//set display theme
 	if(now < cur_rise) body.className = 'predawn';
 	else if(now > cur_set) body.className = 'night';
@@ -198,53 +200,66 @@ function updateData(){
 	else body.className = 'eve';
 	
 	//adjust rise/set times and log previous
-	if(sun.rise < cur_rise) sun.rise.setTime(now > cur_set ? data.daily[1].sunrise * 1000 : cur_rise);
-	if(sun.rise > cur_rise) last.sunrise.setTime(cur_rise);
-
+	if(sun.rise < cur_rise){
+		last.sunrise.setTime(sun.rise.getTime());
+		sun.rise.setTime(cur_rise);
+	}
+	if(now > cur_set){
+		sun.rise.setTime(wxdata.daily[1].sunrise * 1000);
+		last.sunrise.setTime(cur_rise);
+	}
 	if(sun.set < cur_set && now > cur_rise){
 		last.sunset.setTime(sun.set.getTime());
 		sun.set.setTime(cur_set);
 	}
 	
 	if(cur_mrise == 0){ //moon does not rise today
-		cur_mrise = data.daily[1].moonrise * 1000;
+		cur_mrise = wxdata.daily[1].moonrise * 1000;
 		nfo += '| moon rise 0 |';
 	}
 	if(cur_mset == 0){ //moon does not set today
-		cur_mset = data.daily[1].moonset * 1000;
+		cur_mset = wxdata.daily[1].moonset * 1000;
 		nfo += '| moon set 0 |'
 	}
-	
-	if(moon.rise < cur_mrise) moon.rise.setTime(now > cur_mset ? data.daily[1].moonrise * 1000 : cur_mrise);
-	if(moon.rise > cur_mrise) last.moonrise.setTime(cur_mrise);
-	
+	console.log(last.moonrise,moon.rise,cur_mrise);
+	if(moon.rise < cur_mrise){
+		last.moonrise.setTime(moon.rise.getTime());
+		moon.rise.setTime(cur_mrise);
+		console.log('*******',last.moonrise,moon.rise,cur_mrise);
+	}
+	if(now > cur_mset){
+		last.moonrise.setTime(cur_mrise);
+		moon.rise.setTime(wxdata.daily[1].moonrise * 1000);
+		console.log('=======',last.moonrise,moon.rise,cur_mrise);
+	}
 	if(moon.set < cur_mset && now > cur_mrise){
 		last.moonset.setTime(moon.set.getTime());
 		moon.set.setTime(cur_mset);
+		console.log('-------',last.moonset,moon.set,cur_mset);
 	}
 	
 	//populate the display
-	wxdata.querySelector(".temp .current").innerText = Math.round(data.current.temp);
-	wxdata.querySelector(".temp .min").innerText = Math.round(data.daily[0].temp.min);
-	wxdata.querySelector(".temp .max").innerText = Math.round(data.daily[0].temp.max);
-	wxdata.querySelector(".humidity").innerText = data.current.humidity;
-	wxdata.querySelector(".pressure").innerText = mb2inHg(data.current.pressure).toFixed(2);
-	wxdata.querySelector(".dew_point").innerText = Math.round(data.current.dew_point);
-	wxdata.querySelector(".sun .uvi").innerText = data.current.uvi;
-	wxdata.querySelector(".sun .rise").innerHTML = sun.rise_str();
-	wxdata.querySelector(".sun .set").innerHTML = sun.set_str();
-	wxdata.querySelector(".moon .rise").innerHTML = moon.rise_str();
-	wxdata.querySelector(".moon .set").innerHTML = moon.set_str();
-	wxdata.querySelector(".moon .phase").innerHTML = moon.phase();
+	wxdisplay.querySelector(".temp .current").innerText = Math.round(wxdata.current.temp);
+	wxdisplay.querySelector(".temp .min").innerText = Math.round(wxdata.daily[0].temp.min);
+	wxdisplay.querySelector(".temp .max").innerText = Math.round(wxdata.daily[0].temp.max);
+	wxdisplay.querySelector(".humidity").innerText = wxdata.current.humidity;
+	wxdisplay.querySelector(".pressure").innerText = mb2inHg(wxdata.current.pressure);
+	wxdisplay.querySelector(".dew_point").innerText = Math.round(wxdata.current.dew_point);
+	wxdisplay.querySelector(".sun .uvi").innerText = wxdata.current.uvi;
+	wxdisplay.querySelector(".sun .rise").innerHTML = sun.rise_str();
+	wxdisplay.querySelector(".sun .set").innerHTML = sun.set_str();
+	wxdisplay.querySelector(".moon .rise").innerHTML = moon.rise_str();
+	wxdisplay.querySelector(".moon .set").innerHTML = moon.set_str();
+	wxdisplay.querySelector(".moon .phase").innerHTML = moon.phase();
 	
 	precip = !!document.getElementById('wxmap');
 	/*for(let i=0; i<12; i++)
-		if(data.hourly[i].weather[0].id < 800) precip = true;*/
+		if(wxdata.hourly[i].weather[0].id < 800) precip = true;*/
 	
 	if(precip){
 		getMap();
-		if(Math.floor(data.hourly[0].weather[0].id / 100) == 7) nfo += data.hourly[0].weather[0].main;
-		else if(Math.floor(data.hourly[1].weather[0].id / 100) == 7) nfo += data.hourly[1].weather[0].main;
+		if(Math.floor(wxdata.hourly[0].weather[0].id / 100) == 7) nfo += wxdata.hourly[0].weather[0].main;
+		else if(Math.floor(wxdata.hourly[1].weather[0].id / 100) == 7) nfo += wxdata.hourly[1].weather[0].main;
 	}
 	
 	document.querySelector('#as-of').innerText = format(now, 'HH:mm');
@@ -255,12 +270,11 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 	fetch(new Request('https://api.openweathermap.org/data/2.5/onecall?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
 		.then(response => response.json())
 		.then(json => {
-			Object.assign(data,json);
+			Object.assign(wxdata,json);
 
-			let logdata = {"temp": data.current.temp, "humidity": data.current.humidity, "pressure": data.current.pressure},
+			let logdata = {"temp": wxdata.current.temp, "humidity": wxdata.current.humidity, "pressure": wxdata.current.pressure},
 				wxlog = new Array(),
-				now = new Date(),
-				low = null;
+				now = new Date();
 			
 			//remove old log entries and add the rest to an array
 			Object.entries(localStorage).forEach(([key, val]) => {
@@ -274,19 +288,19 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			});
 			wxlog.sort((a, b) => parseInt(a) - parseInt(b));
 			
-			if(last.update < now - 30 * 60 * 1000){
-				localStorage.setItem(now.getTime(), JSON.stringify(logdata));
-				console.log('logged', now, logdata);
-			}
+			//log current data
+			if(last.update < now - 30 * 60 * 1000) localStorage.setItem(now.getTime(), JSON.stringify(logdata));
 			
+			//reset chart data
 			wxchart.data.datasets[0].data = [];
 			wxchart.data.datasets[1].data = [];
 			wxchart.data.datasets[2].data = [];
 			wxchart.data.datasets[3].data = [];
 
-			wxlog.forEach(lmnt => {
-				let y = JSON.parse(lmnt[1]),
-					x = parseInt(lmnt[0]);
+			//added logged data to chart
+			wxlog.forEach(point => {
+				let y = JSON.parse(point[1]),
+					x = parseInt(point[0]);
 				
 				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(y.pressure)});
 				wxchart.data.datasets[1].data.push({x: x, y: y.humidity});
@@ -294,21 +308,22 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 				wxchart.data.datasets[3].data.push({x: x, y: 0});
 			});
 			
-			data.hourly.forEach(hour => {
+			//add forecase data to chart and determine overnight low
+			let low = 99;
+			wxdata.hourly.forEach(hour => {
 				let x = hour.dt * 1000,
-					nextrise = now < data.current.sunrise * 1000 ? data.current.sunrise * 1000 : data.daily[1].sunrise * 1000;
+					nextrise = now < wxdata.current.sunrise * 1000 ? wxdata.current.sunrise * 1000 : wxdata.daily[1].sunrise * 1000;
 
 				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(hour.pressure)});
 				wxchart.data.datasets[1].data.push({x: x, y: hour.humidity});
 				wxchart.data.datasets[2].data.push({x: x, y: hour.temp});
 				wxchart.data.datasets[3].data.push({x: x, y: (hour.pop * 100)});
 
-				if(x < nextrise && (low == null || hour.temp < low)) low = hour.temp;
+				if(x < nextrise && hour.temp < low) low = hour.temp;
 			});
+			wxdata.daily[0].temp.min = low; //set to overnight low
 
-			data.daily[0].temp.min = low; //set to overnight low
-
-			updateData();
+			updateDisplay();
 			wxchart.update();
 
 			update_i = 0;
@@ -321,14 +336,14 @@ function getWX(lat = 36.16754647878633, lon = -86.21153419024921){
 	fetch(new Request('https://api.openweathermap.org/data/2.5/weather?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
 		.then(response => response.json())
 		.then(json => {
-			Object.assign(data,json);
+			Object.assign(wxdata,json);
 			
 			//so there's only one place to look for these
-			data.current.temp = json.main.temp;
-			data.current.humidity = json.main.humidity;
-			data.current.pressure = json.main.pressure;
+			wxdata.current.temp = json.main.temp;
+			wxdata.current.humidity = json.main.humidity;
+			wxdata.current.pressure = json.main.pressure;
 
-			updateData();
+			updateDisplay();
 		}).catch(error => {document.querySelector("#nfo").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
 }
 
@@ -372,12 +387,13 @@ function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
 	}
 }
 
+//engage
 getOC();
 
 //clock
-setInterval(() => wxdata.querySelector(".sun .time").innerText = format(Date.now(), 'HH:mm:ss'), (1000));
+setInterval(() => wxdisplay.querySelector(".sun .time").innerText = format(Date.now(), 'HH:mm:ss'), (1000));
 
-//refresh data
-setInterval(() => (++update_i >= (60 / updateInterval)) ? getOC() : getWX(), (updateInterval * 60 * 1000));
+//refresh current data per updateInterval but forecast only once an hour
+setInterval(() => ++update_i >= 60 / updateInterval ? getOC() : getWX(), (updateInterval * 60 * 1000));
 
-document.querySelector("body").addEventListener("click", () => document.documentElement.requestFullscreen(), {once:true});
+body.addEventListener("click", () => document.documentElement.requestFullscreen(), {once:true});
