@@ -1,18 +1,14 @@
 import Chart from 'chart.js/auto';
 import 'chartjs-adapter-date-fns';
-import format from 'date-fns/format'
+import { intervalToDuration } from 'date-fns';
+import format from 'date-fns/format';
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
 
-
-//import timekeeper from 'timekeeper';
-//timekeeper.travel(Date.now() - 4 * 60 * 60 * 1000);
-
-
-let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
+let apikey = '48ce79e682e5e8f79e39cc1374871d75', //do not steal
 	updateInterval = 10, //in minutes
-	chart_w, chart_h, temp_grad, update_i = 0,
-	chart_ctx = document.querySelector("#wxchart canvas").getContext("2d"),
-	wxdisplay = document.querySelector("#wxdisplay"),
+	tg_chart_w, tg_chart_h, hg_chart_w, hg_chart_h,temp_grad, hum_grad, update_i = 0,
+	chart_ctx = document.querySelector('#wxchart canvas').getContext('2d'),
+	wxdisplay = document.querySelector('#wxdisplay'),
 	body = document.body,
 	wxdata = {},
 	last = {
@@ -31,13 +27,13 @@ let apikey = "48ce79e682e5e8f79e39cc1374871d75", //do not steal
 	},
 	sun = {
 		rise:null, set:null,
-		rise_str	: function(){return astroStrTpl`${this.rise}${last.sunrise}`},
-		set_str		: function(){return astroStrTpl`${this.set}${last.sunset}`},
+		rise_str	: function(){return astroStrTpl`${this.rise}${last.sunrise}`;},
+		set_str		: function(){return astroStrTpl`${this.set}${last.sunset}`;},
 	},
 	moon = {
 		rise:null, set:null,
-		rise_str	: function(){return astroStrTpl`${this.rise}${last.moonrise}`},
-		set_str		: function(){return astroStrTpl`${this.set}${last.moonset}`},
+		rise_str	: function(){return astroStrTpl`${this.rise}${last.moonrise}`;},
+		set_str		: function(){return astroStrTpl`${this.set}${last.moonset}`;},
 		phase		: () => {
 						let p = wxdata.daily[0].moon_phase;
 						
@@ -63,75 +59,79 @@ moon.rise = new Date(last.moonrise.getTime());
 moon.set = new Date(last.moonset.getTime());
 
 const wxchart = new Chart(chart_ctx, {
-	type:"line",
+	type:'line',
 	data:{
 		datasets:[{
-			label:"Pressure",
+			label:'Pressure',
 			data: [],
-			yAxisID:"y2",
-			borderColor: "rgba(255, 255, 255, .5)",
+			yAxisID:'y2',
+			borderColor: 'rgba(255, 255, 255, .5)',
 			backgroundColor: ctx => 'rgba(255, 255, 255, ' + ((ctx.raw) ? (ctx.raw.x < Date.now() ? '.75)' : '0)') : '.5)')},
 		{
-			label:"Humidity",
-			data: [],
-			borderColor: "rgba(0, 192, 255, .5)",
-			backgroundColor: ctx => 'rgba(0, 224, 255, ' + ((ctx.raw) ? (ctx.raw.x < Date.now() ? ".75)" : "0)") : '.5)')},
-		{
-			label:"Temp",
+			label:'Humidity',
 			data: [],
 			borderColor: function(context){
 				const chart = context.chart,
 					{ctx, chartArea} = chart;
 		
 				if(!chartArea) return;
-				return tempGradient(ctx, chartArea);
+				return humidityGradient(ctx, chartArea);
 			},
 			backgroundColor: function(context){
 				const chart = context.chart,
 					{ctx, chartArea} = chart;
 		
 				if(!chartArea) return;
-				return ((context.raw) ? (context.raw.x < Date.now() ? tempGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,.5)');
+				return ((context.raw) ? (context.raw.x < Date.now() ? humidityGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,.5)');
+			}
+			},
+		{
+			label:'Temp',
+			data: [],
+			borderColor: function(context){
+				const chart = context.chart,
+					{ctx, chartArea} = chart;
+		
+				if(!chartArea) return;
+				return temperatureGradient(ctx, chartArea);
+			},
+			backgroundColor: function(context){
+				const chart = context.chart,
+					{ctx, chartArea} = chart;
+		
+				if(!chartArea) return;
+				return ((context.raw) ? (context.raw.x < Date.now() ? temperatureGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,.5)');
 			}},
 		{
-			label:"Precip",
-			type: "bar",
+			label:'Precip',
+			type: 'bar',
 			data: [],
 			barThickness: 1,
-			borderColor: "rgba(0, 127, 255, .25)",
-			backgroundColor: "rgba(0, 127, 255, .75)"}
+			borderColor: 'rgba(0, 127, 255, .25)',
+			backgroundColor: 'rgba(0, 127, 255, .75)'}
 		]},
 	options:{
 		responsive:true,
 		maintainAspectRatio:false,
 		plugins: {
 			legend: {
-				display: true,
-				labels: {
-					color: "rgb(224,224,224)"
-				}
+				display: false,
 			}
 		},
 		scales:{
 			y1:{
 				min:0,
 				max:100,
-				grid:{
-					color:function(context){
-						if(context.tick.value == 20) return 'rgba(128,128,128,.5)';
-						else return 'rgba(0,0,0,.5)';
-					  },
-				},
 				ticks: {color:'rgb(224,224,224)'}
 			},
 			y2:{
-				position:"right",
+				position:'right',
 				min:29.00,
 				max:31.00,
 				ticks: {color:'rgb(224,224,224)'}
 			},
 			x:{
-				type:"time",
+				type:'time',
 				time:{
 					unit:'hour',
 					displayFormats:{hour:'HH'}
@@ -141,7 +141,7 @@ const wxchart = new Chart(chart_ctx, {
 						if(!context.tick) return;
 						if(new Date(context.tick.value).getHours() == new Date().getHours()) return 'rgba(128,128,128,.5)';
 						else return 'rgba(0,0,0,.5)';
-					  }
+					}
 				},
 				ticks: {color:'rgb(224,224,224)'}
 			}
@@ -151,34 +151,51 @@ const wxchart = new Chart(chart_ctx, {
 
 const mb2inHg = mb => Number((Math.round(1000 * mb * 0.0295301) / 1000)).toFixed(2);
 
-function tempGradient(ctx, chartArea){
+function temperatureGradient(ctx, chartArea){
 	const chartWidth = chartArea.right - chartArea.left;
 	const chartHeight = chartArea.bottom - chartArea.top;
 
-	if(!temp_grad || chart_w !== chartWidth || chart_h !== chartHeight){
-		chart_w = chartWidth;
-		chart_h = chartHeight;
+	if(!temp_grad || tg_chart_w !== chartWidth || tg_chart_h !== chartHeight){
+		tg_chart_w = chartWidth;
+		tg_chart_h = chartHeight;
 		temp_grad = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
-		temp_grad.addColorStop(1, 'rgba(255,0,0,.5'); //red
-		temp_grad.addColorStop(0.8, 'rgba(255,128,0,.5'); //orange
-		temp_grad.addColorStop(0.7, 'rgba(0,255,0,.5'); //green
-		temp_grad.addColorStop(0.35, 'rgba(0,128,255,.6'); //blue
-		temp_grad.addColorStop(0.32, 'rgba(0,255,255,.8'); //cyan
-		temp_grad.addColorStop(0, 'rgba(255,255,255,1'); //white
+		temp_grad.addColorStop(1, 'rgba(255,0,0,.7)'); //red
+		temp_grad.addColorStop(0.88, 'rgba(255,128,0,.7)'); //orange
+		temp_grad.addColorStop(0.77, 'rgba(255,255,0,.7)'); //yellow
+		temp_grad.addColorStop(0.67, 'rgba(0,255,0,.7)'); //green
+		temp_grad.addColorStop(0.5, 'rgba(0,0,255,.7)'); //blue
+		temp_grad.addColorStop(0.35, 'rgba(0,128,255,.77)'); //blue-green
+		temp_grad.addColorStop(0.32, 'rgba(0,255,255,.88)'); //cyan
+		temp_grad.addColorStop(0, 'rgba(255,255,255,1)'); //white
 	}
 	
 	return temp_grad;
+}
+
+function humidityGradient(ctx, chartArea){
+	const chartWidth = chartArea.right - chartArea.left;
+	const chartHeight = chartArea.bottom - chartArea.top;
+
+	if(!hum_grad || hg_chart_w !== chartWidth || hg_chart_h !== chartHeight){
+		hg_chart_w = chartWidth;
+		hg_chart_h = chartHeight;
+		hum_grad = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
+		hum_grad.addColorStop(1, 'rgba(0, 192, 255, 1)');
+		hum_grad.addColorStop(0, 'rgba(0, 192, 255, 0)');
+	}
+	
+	return hum_grad;
 }
 
 function astroStrTpl(strs, current, previous){
 	let delta = Math.round(current - previous - 24 * 60 * 60 * 1000) / 1000,
 		m = Math.abs(Math.trunc(delta / 60)),
 		s = Math.abs(delta % 60),
-		sign = delta < 0 ? '-' : '',
-		now = new Date(),
-		deltastr = previous < current ? `<span>&Delta; ${sign}${m > 0 ? m+'m:' : ''}${s}s</span>` : '';
-	
-	return `${format(current, 'HH:mm')} ${deltastr} <small>(${(now > current ? '+' : '-')}${formatDistanceToNowStrict(current)})</small>`;
+		d_sign = delta < 0 ? '-' : '',
+		d_time = (m > 0 ? m+'m' : '') + (m > 0 && s > 0 ? ':' : '') + (s > 0 ? s+'s' : ''),
+		d_str = previous < current ? `<span>&Delta; ${d_sign}${d_time}</span>` : '';
+
+	return `${format(current, 'HH:mm')} ${d_str} <small>(${(Date.now() > current ? '+' : '-')}${formatDistanceToNowStrict(current)})</small>`;
 }
 
 function updateDisplay(){
@@ -187,8 +204,10 @@ function updateDisplay(){
 		nfo = '',
 		cur_rise = wxdata.current.sunrise * 1000,
 		cur_set = wxdata.current.sunset * 1000,
+		LoD = intervalToDuration({start:cur_rise, end:cur_set}),
 		cur_mrise = wxdata.daily[0].moonrise * 1000,
-		cur_mset = wxdata.daily[0].moonset * 1000;
+		cur_mset = wxdata.daily[0].moonset * 1000,
+		LoM = intervalToDuration({start:cur_mrise, end:cur_mset});
 		
 	//set display theme
 	if(now < cur_rise) body.className = 'predawn';
@@ -209,16 +228,14 @@ function updateDisplay(){
 		last.sunset.setTime(sun.set.getTime());
 		sun.set.setTime(cur_set);
 	}
-	
 	if(cur_mrise == 0){ //moon does not rise today
 		cur_mrise = wxdata.daily[1].moonrise * 1000;
 		nfo += '| moon rise 0 |';
 	}
 	if(cur_mset == 0){ //moon does not set today
 		cur_mset = wxdata.daily[1].moonset * 1000;
-		nfo += '| moon set 0 |'
+		nfo += '| moon set 0 |';
 	}
-	
 	if(moon.rise < cur_mrise){
 		last.moonrise.setTime(moon.rise.getTime());
 		moon.rise.setTime(cur_mrise);
@@ -227,24 +244,26 @@ function updateDisplay(){
 		last.moonrise.setTime(cur_mrise);
 		moon.rise.setTime(wxdata.daily[1].moonrise * 1000);
 	}
-	if(moon.set < cur_mset && now > cur_mrise){
+	if(moon.set < cur_mset){
 		last.moonset.setTime(moon.set.getTime());
 		moon.set.setTime(cur_mset);
 	}
-	
+
 	//populate the display
-	wxdisplay.querySelector(".temp .current").innerText = Math.round(wxdata.current.temp);
-	wxdisplay.querySelector(".temp .min").innerText = Math.round(wxdata.daily[0].temp.min);
-	wxdisplay.querySelector(".temp .max").innerText = Math.round(wxdata.daily[0].temp.max);
-	wxdisplay.querySelector(".humidity").innerText = wxdata.current.humidity;
-	wxdisplay.querySelector(".pressure").innerText = mb2inHg(wxdata.current.pressure);
-	wxdisplay.querySelector(".dew_point").innerText = Math.round(wxdata.current.dew_point);
-	wxdisplay.querySelector(".sun .uvi").innerText = wxdata.current.uvi;
-	wxdisplay.querySelector(".sun .rise").innerHTML = sun.rise_str();
-	wxdisplay.querySelector(".sun .set").innerHTML = sun.set_str();
-	wxdisplay.querySelector(".moon .rise").innerHTML = moon.rise_str();
-	wxdisplay.querySelector(".moon .set").innerHTML = moon.set_str();
-	wxdisplay.querySelector(".moon .phase").innerHTML = moon.phase();
+	wxdisplay.querySelector('.temp .current').innerText = Math.round(wxdata.current.temp);
+	wxdisplay.querySelector('.temp .min').innerText = Math.round(wxdata.daily[0].temp.min);
+	wxdisplay.querySelector('.temp .max').innerText = Math.round(wxdata.daily[0].temp.max);
+	wxdisplay.querySelector('.humidity').innerText = wxdata.current.humidity;
+	wxdisplay.querySelector('.pressure').innerText = mb2inHg(wxdata.current.pressure);
+	wxdisplay.querySelector('.dew_point').innerText = Math.round(wxdata.current.dew_point);
+	wxdisplay.querySelector('.sun .uvi').innerText = wxdata.current.uvi;
+	wxdisplay.querySelector('.sun .rise').innerHTML = sun.rise_str();
+	wxdisplay.querySelector('.sun .set').innerHTML = sun.set_str();
+	wxdisplay.querySelector('.sun .time .lod').innerHTML = `${LoD.hours}h:${LoD.minutes}m`;
+	wxdisplay.querySelector('.sun .time .lom').innerHTML = `${LoM.hours}h:${LoM.minutes}m`;
+	wxdisplay.querySelector('.moon .rise').innerHTML = moon.rise_str();
+	wxdisplay.querySelector('.moon .set').innerHTML = moon.set_str();
+	wxdisplay.querySelector('.moon .phase').innerHTML = moon.phase();
 	
 	precip = !!document.getElementById('wxmap');
 	/*for(let i=0; i<12; i++)
@@ -266,7 +285,7 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 		.then(json => {
 			Object.assign(wxdata,json);
 
-			let logdata = {"temp": wxdata.current.temp, "humidity": wxdata.current.humidity, "pressure": wxdata.current.pressure},
+			let logdata = {'temp': wxdata.current.temp, 'humidity': wxdata.current.humidity, 'pressure': wxdata.current.pressure},
 				wxlog = new Array(),
 				now = new Date();
 			
@@ -323,8 +342,8 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			update_i = 0;
 			last.update.setTime(now.getTime());
 			localStorage.last = JSON.stringify(last);
-		}).catch(error => {document.querySelector("#nfo").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
-};
+		}).catch(error => {document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
+}
 
 function getWX(lat = 36.16754647878633, lon = -86.21153419024921){
 	fetch(new Request('https://api.openweathermap.org/data/2.5/weather?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
@@ -338,17 +357,17 @@ function getWX(lat = 36.16754647878633, lon = -86.21153419024921){
 			wxdata.current.pressure = json.main.pressure;
 
 			updateDisplay();
-		}).catch(error => {document.querySelector("#nfo").innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
+		}).catch(error => {document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
 }
 
 function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
 	let n = 2 ** zoom,
 		xtile = Math.floor((lon + 180) / 360 * n),
 		ytile = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n),
-		wxcanvas = document.querySelector("#wxmap canvas"),
+		wxcanvas = document.querySelector('#wxmap canvas'),
 		osmcanvas = document.querySelector('#osmap canvas'),
-		wxctx = wxcanvas.getContext("2d"),
-		osmctx = osmcanvas.getContext("2d"),
+		wxctx = wxcanvas.getContext('2d'),
+		osmctx = osmcanvas.getContext('2d'),
 		tilesize = 256;
 
 	wxcanvas.width = window.innerWidth;
@@ -362,18 +381,18 @@ function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
 					let imgURL = URL.createObjectURL(blob),
 						img = new Image(tilesize,tilesize);
 
-					img.onload = function(){osmctx.drawImage(this,x*tilesize,y*tilesize);}
+					img.onload = function(){osmctx.drawImage(this,x*tilesize,y*tilesize);};
 
 					img.src = imgURL;
 				});
 			
-			fetch(new Request("https://tile.openweathermap.org/map/precipitation_new/"+zoom+"/"+(xtile + x)+"/"+(ytile + y)+".png?appid="+apikey))
+			fetch(new Request('https://tile.openweathermap.org/map/precipitation_new/'+zoom+'/'+(xtile + x)+'/'+(ytile + y)+'.png?appid='+apikey))
 				.then(response => response.blob())
 				.then(blob => {
 					let imgURL = URL.createObjectURL(blob),
 						img = new Image(tilesize,tilesize);
 
-					img.onload = function(){wxctx.drawImage(this,x*tilesize,y*tilesize);}
+					img.onload = function(){wxctx.drawImage(this,x*tilesize,y*tilesize);};
 
 					img.src = imgURL;
 				});
@@ -385,9 +404,9 @@ function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
 getOC();
 
 //clock
-setInterval(() => wxdisplay.querySelector(".sun .time").innerText = format(Date.now(), 'HH:mm:ss'), (1000));
+setInterval(() => wxdisplay.querySelector('.sun .time .current').innerText = format(Date.now(), 'HH:mm:ss'), (1000));
 
 //refresh current data per updateInterval but forecast only once an hour
 setInterval(() => ++update_i >= 60 / updateInterval ? getOC() : getWX(), (updateInterval * 60 * 1000));
 
-body.addEventListener("click", () => document.documentElement.requestFullscreen(), {once:true});
+body.addEventListener('click', () => document.documentElement.requestFullscreen(), {once:true});

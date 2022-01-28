@@ -10,7 +10,7 @@
 	"scripts": {
 		"build": "rollup -c && node deploy.cjs \"/dist/js\" \"%npm_package_config_assets%/js\"",
 		"watch": "rollup -c -w",
-		"lint": "eslint src/javascript --fix",
+		"lint": "eslint src/js --fix",
 		"imgmin": "imagemin src/images --out-dir dist/img --plugin.webp.quality=95",
 		"scss": "sass --style=compressed src/scss:dist/css",
 		"prefix": "postcss -u autoprefixer -r dist/css/*.css",
