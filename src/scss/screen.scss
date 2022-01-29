@@ -51,7 +51,7 @@ body{background:no-repeat center; background-size:cover;
 				}
 			}
 			.sun{align-items:baseline; padding-top:0;
-				&::before{content:'sun'; bottom:.67em; border-bottom:1px solid $bdrclr;}
+				&::before{content:'sun'; bottom:.75em; border-bottom:1px solid $bdrclr;}
 				span{flex:1 1 33%;
 					small{display:block; line-height:1em; font-size:.67em; font-weight:400;}
 				}
@@ -64,18 +64,21 @@ body{background:no-repeat center; background-size:cover;
 				.set{
 					&::before{content:'set'; bottom:0;}
 				}
-				.time{position:absolute; bottom:0; left:50%; transform:translate(-50%,calc(50% + 1px));
-					.lod{margin-right:.5em;
-						&::before{top:50%; left:0; transform:translateX(calc(-100% - 1em)); content:'Daylight';}
+				.time{position:absolute; bottom:0; left:50%; transform:translate(-50%,calc(50% + .1em)); white-space:nowrap;
+					.lod,.lom{display:inline-block; top:50%; transform:translateY(-.1em);
+						&::before{bottom:50%;}
 					}
-					.current{font-size:1em;}
+					.lod{margin-right:.5em;
+						&::before{left:0; transform:translateX(calc(-100% - 1em)); content:'Daylight';}
+					}
+					.current{font-size:1.1em;}
 					.lom{margin-left:.5em;
-						&::before{top:50%; right:0; transform:translateX(calc(100% + 1em)); content:'Moonlight';}
+						&::before{right:0; transform:translateX(calc(100% + 1em)); content:'Moonlight';}
 					}
 				}
 			}
 			.moon{
-				&::before{content:'moon'; top:.67em; border-top:1px solid $bdrclr;}
+				&::before{content:'moon'; top:.5em; border-top:1px solid $bdrclr;}
 				span{flex:1 1 33%;
 					small{display:block; line-height:1em; font-size:.67em; font-weight:400;}
 				}

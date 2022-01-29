@@ -1,6 +1,6 @@
 {
 	"name": "npm-build-ravenflight",
-	"version": "1.5.0",
+	"version": "1.7.0",
 	"description": "A set of web dev tasks.",
 	"author": "David Willis <david@ravenflight.media>",
 	"type": "module",
@@ -8,19 +8,19 @@
 		"assets": "www/assets"
 	},
 	"scripts": {
-		"build": "rollup -c && node deploy.cjs \"/dist/js\" \"%npm_package_config_assets%/js\"",
-		"watch": "rollup -c -w",
+		"imgmin": "imagemin src/images --out-dir dist/img --plugin.webp.quality=90",
 		"lint": "eslint src/js --fix",
-		"imgmin": "imagemin src/images --out-dir dist/img --plugin.webp.quality=95",
-		"scss": "sass --style=compressed src/scss:dist/css",
-		"prefix": "postcss -u autoprefixer -r dist/css/*.css",
 		"terse": "terser src/js/main.js --source-map --output dist/js/js.js",
-		"deploy:css": "npm run scss && node deploy.cjs \"/dist/css\" \"%npm_package_config_assets%/css\"",
-		"deploy:js": "npm run terse && node deploy.cjs \"/dist/js\" \"%npm_package_config_assets%/js\"",
-		"deploy:all": "npm run terse && npm run scss && npm run prefix && node deploy.cjs \"/dist\" \"%npm_package_config_assets%\"",
+		"prefix": "postcss -u autoprefixer -r dist/css/*.css",
+		"build:js": "rollup -c",
+		"build:css": "sass --style=compressed src/scss:dist/css",
+		"deploy:css": "npm run build:css && node deploy.cjs \"/dist/css\" \"%npm_package_config_assets%/css\"",
+		"deploy:js": "npm run build:js && node deploy.cjs \"/dist/js\" \"%npm_package_config_assets%/js\"",
+		"deploy:all": "node deploy.cjs \"/dist\" \"%npm_package_config_assets%\"",
+		"deploy:prod": "npm run build:js && npm run build:css && npm run prefix && npm run deploy:all",
 		"watch:css": "onchange -k \"src/scss/*.scss\" -- npm run deploy:css",
-		"watch:js": "onchange -k \"src/js/*.js\" -- npm run build",
-		"watch:all": "concurrently \"npm run watch:css\" \"npm run watch:js\""
+		"watch:js": "onchange -k \"src/js/*.js\" -- npm run deploy:js",
+		"watch": "concurrently \"npm run watch:css\" \"npm run watch:js\""
 	},
 	"dependencies": {
 		"chart.js": "^3.6.2",
@@ -28,12 +28,14 @@
 		"date-fns": "^2.27.0"
 	},
 	"devDependencies": {
-		"@rollup/plugin-commonjs": "^17.0.0",
-		"@rollup/plugin-node-resolve": "^11.1.0",
+		"@rollup/plugin-commonjs": "^17.1.0",
+		"@rollup/plugin-node-resolve": "^11.2.1",
 		"@samkirkland/ftp-deploy": "^1.1.1",
+		"autoprefixer": "^10.4.2",
 		"eslint": "^8.5.0",
-		"npm-run-all": "^4.1.5",
+		"postcss": "^8.4.5",
 		"rollup": "^2.36.2",
-		"rollup-plugin-terser": "^7.0.2"
+		"rollup-plugin-terser": "^7.0.2",
+		"sass": "^1.49.0"
 	}
 }

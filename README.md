@@ -1,2 +1,2 @@
-# -site-template
+# A weather station.
  
