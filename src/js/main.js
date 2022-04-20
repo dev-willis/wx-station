@@ -164,7 +164,7 @@ function temperatureGradient(ctx, chartArea){
 		temp_grad.addColorStop(0.77, 'rgba(255,255,0,.7)'); //yellow
 		temp_grad.addColorStop(0.67, 'rgba(0,255,0,.7)'); //green
 		temp_grad.addColorStop(0.5, 'rgba(0,0,255,.7)'); //blue
-		temp_grad.addColorStop(0.35, 'rgba(0,128,255,.77)'); //blue-green
+		temp_grad.addColorStop(0.33, 'rgba(0,128,255,.77)'); //blue-green
 		temp_grad.addColorStop(0.32, 'rgba(0,255,255,.88)'); //cyan
 		temp_grad.addColorStop(0, 'rgba(255,255,255,1)'); //white
 	}
