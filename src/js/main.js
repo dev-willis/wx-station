@@ -160,9 +160,10 @@ function temperatureGradient(ctx, chartArea){
 		tg_chart_h = chartHeight;
 		temp_grad = ctx.createLinearGradient(0, chartArea.bottom, 0, chartArea.top);
 		temp_grad.addColorStop(1, 'rgba(255,0,0,.7)'); //red
-		temp_grad.addColorStop(0.88, 'rgba(255,128,0,.7)'); //orange
+		temp_grad.addColorStop(0.9, 'rgba(192,0,0,.7)'); //red
+		temp_grad.addColorStop(0.84, 'rgba(255,128,0,.7)'); //orange
 		temp_grad.addColorStop(0.77, 'rgba(255,255,0,.7)'); //yellow
-		temp_grad.addColorStop(0.67, 'rgba(0,255,0,.7)'); //green
+		temp_grad.addColorStop(0.65, 'rgba(0,255,0,.7)'); //green
 		temp_grad.addColorStop(0.5, 'rgba(0,0,255,.7)'); //blue
 		temp_grad.addColorStop(0.33, 'rgba(0,128,255,.77)'); //blue-green
 		temp_grad.addColorStop(0.32, 'rgba(0,255,255,.88)'); //cyan
