@@ -103,6 +103,12 @@ const wxchart = new Chart(chart_ctx, {
 				return ((context.raw) ? (context.raw.x < Date.now() ? temperatureGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,.5)');
 			}},
 		{
+			label:'Dew Point',
+			data: [],
+			borderColor: 'rgba(192, 192, 255, .5)',
+			borderThickness: 10,
+			backgroundColor: 'rgba(0, 255, 255, 0)'},
+		{
 			label:'Precip',
 			type: 'bar',
 			data: [],
@@ -310,8 +316,9 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			wxchart.data.datasets[1].data = [];
 			wxchart.data.datasets[2].data = [];
 			wxchart.data.datasets[3].data = [];
+			wxchart.data.datasets[4].data = [];
 
-			//added logged data to chart
+			//add logged data to chart
 			wxlog.forEach(point => {
 				let y = JSON.parse(point[1]),
 					x = parseInt(point[0]);
@@ -319,7 +326,8 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(y.pressure)});
 				wxchart.data.datasets[1].data.push({x: x, y: y.humidity});
 				wxchart.data.datasets[2].data.push({x: x, y: y.temp});
-				wxchart.data.datasets[3].data.push({x: x, y: 0});
+				wxchart.data.datasets[3].data.push({x: x, y: calcDP(y.temp, y.humidity)});
+				wxchart.data.datasets[4].data.push({x: x, y: 0});
 			});
 			
 			//add forecase data to chart and determine overnight low
@@ -331,7 +339,8 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(hour.pressure)});
 				wxchart.data.datasets[1].data.push({x: x, y: hour.humidity});
 				wxchart.data.datasets[2].data.push({x: x, y: hour.temp});
-				wxchart.data.datasets[3].data.push({x: x, y: (hour.pop * 100)});
+				wxchart.data.datasets[3].data.push({x: x, y: calcDP(hour.temp, hour.humidity)});
+				wxchart.data.datasets[4].data.push({x: x, y: (hour.pop * 100)});
 
 				if(x < nextrise && hour.temp < low) low = hour.temp;
 			});
@@ -399,6 +408,11 @@ function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
 				});
 		}
 	}
+}
+
+function calcDP(T, H){
+	let a = 17.27, b = 237.7, RH = H / 100;
+	return (b * ((a * T) / (b + T) + Math.log(RH))) / (a - ((a * T) / (b + T) + Math.log(RH)))
 }
 
 //engage
