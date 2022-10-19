@@ -64,12 +64,16 @@ const wxchart = new Chart(chart_ctx, {
 		datasets:[{
 			label:'Pressure',
 			data: [],
+			pointRadius:0,
 			yAxisID:'y2',
+			lineTension: .5,
+
 			borderColor: 'rgba(255, 255, 255, .5)',
 			backgroundColor: ctx => 'rgba(255, 255, 255, ' + ((ctx.raw) ? (ctx.raw.x < Date.now() ? '.75)' : '0)') : '.5)')},
 		{
 			label:'Humidity',
 			data: [],
+			lineTension: .5,
 			borderColor: function(context){
 				const chart = context.chart,
 					{ctx, chartArea} = chart;
@@ -88,6 +92,7 @@ const wxchart = new Chart(chart_ctx, {
 		{
 			label:'Temp',
 			data: [],
+			lineTension: .5,
 			borderColor: function(context){
 				const chart = context.chart,
 					{ctx, chartArea} = chart;
@@ -105,8 +110,10 @@ const wxchart = new Chart(chart_ctx, {
 		{
 			label:'Dew Point',
 			data: [],
+			lineTension: .5,
 			borderColor: 'rgba(192, 192, 255, .5)',
-			borderThickness: 10,
+			borderWidth: 1,
+			pointRadius:0,
 			backgroundColor: 'rgba(0, 255, 255, 0)'},
 		{
 			label:'Precip',
@@ -286,6 +293,7 @@ function updateDisplay(){
 	document.querySelector('#nfo').innerHTML = nfo;
 }
 
+//OWM's One Call API
 function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 	fetch(new Request('https://api.openweathermap.org/data/2.5/onecall?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
 		.then(response => response.json())
@@ -352,7 +360,11 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			update_i = 0;
 			last.update.setTime(now.getTime());
 			localStorage.last = JSON.stringify(last);
-		}).catch(error => {document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
+			document.body.classList.remove('error');
+		}).catch(error => {
+			document.body.classList.add('error');
+			//document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);
+		});
 }
 
 function getWX(lat = 36.16754647878633, lon = -86.21153419024921){

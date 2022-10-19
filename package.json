@@ -25,7 +25,8 @@
 	"dependencies": {
 		"chart.js": "^3.6.2",
 		"chartjs-adapter-date-fns": "^2.0.0",
-		"date-fns": "^2.27.0"
+		"date-fns": "^2.27.0",
+		"ftp-deploy": "^2.4.3"
 	},
 	"devDependencies": {
 		"@rollup/plugin-commonjs": "^17.1.0",
