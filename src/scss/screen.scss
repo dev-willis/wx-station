@@ -8,17 +8,17 @@ body{background:no-repeat center; background-size:cover;
 	&.eve{background-image:url('/assets/img/bg-eve.jpg');}
 	&.night{background-image:url('/assets/img/bg-night.jpg');}
 	&.predawn{background-image:url('/assets/img/bg-predawn.jpg');}
-	&.error main #wxdisplay{border-color:red !important;}
+	&.error main #wxdisplay{color:$gr !important;}
 	main{height:100vh; overflow:hidden; display:flex; flex-direction:column; background:color.adjust($bk, $alpha:-.75);
 		section{width:100%;}
-		#wxdisplay{display:grid; grid-template-columns:repeat(8, 1fr); border:1px solid $bdrclr; position:relative; color:$wh; text-shadow:1px 1px 3px $gr-d;
+		#wxdisplay{display:grid; grid-template-columns:repeat(16, 1fr); border:1px solid $bdrclr; position:relative; color:$wh; text-shadow:1px 1px 3px $gr-d;
 			article{display:grid; align-items:center; padding:.5em 0; position:relative;}
 			span{padding:.3em 0; position:relative; text-align:center; font-weight:bold;
 				&::before{position:absolute; bottom:.67em; left:50%; transform:translateY(.25em);
 							font-size:.5em; line-height:0; font-weight:normal; color:hsl(0,0%,80%);}
 				&::after{position:absolute;}
 			}
-			.temp{grid-column:1 / 4; grid-row:1 / 4; grid-template-columns:repeat(3,1fr); font-size:1.5em; border-right:1px solid $bdrclr; border-bottom:1px solid $bdrclr;
+			.temp{grid-column:1 / 6; grid-row:1 / 4; grid-template-columns:repeat(3,1fr); font-size:1.5em; border-right:1px solid $bdrclr; border-bottom:1px solid $bdrclr;
 				span::before{font-size:.33em;}
 				.current{grid-column:1 / 3; grid-row:1 / 3; font-size:4em;
 					&::after{content:"\00b0";}
@@ -32,13 +32,13 @@ body{background:no-repeat center; background-size:cover;
 					&::after{content:"\00b0";}
 				}
 			}
-			.atmo{grid-column:4 / 5; grid-row:1 / 4; grid-template-rows:repeat(3,1fr); font-size:1.5em; border-right:1px solid $bdrclr;
+			.atmo{grid-column:6 / 9; grid-row:1 / 4; grid-template-rows:repeat(3,1fr); font-size:1.5em; border-right:1px solid $bdrclr;
 				span{text-align:right; padding-right:1em;
 					&::before{font-size:.25em;}
 				}
 				.pressure{grid-row:1 / 2;
 					&::before{content:'pressure';}
-					&::after{content:"inHg"; font-size:.25em; transform:translateY(1em);}
+					&::after{content:"inHg"; font-size:.25em; bottom:0;}
 				}
 				.dew_point{grid-row:3 / 4;
 					&::before{content:'dew point';}
@@ -49,7 +49,7 @@ body{background:no-repeat center; background-size:cover;
 					&::after{content:"%";}
 				}
 			}
-			.astro{grid-column:5 / 9; display:flex; flex-wrap:wrap; position:relative; border:0; min-height:5em;
+			.astro{grid-column:9 / 17; display:flex; flex-wrap:wrap; position:relative; border:0; min-height:5em;
 				&::before{display:block; position:absolute; left:50%; transform:translateX(-50%); width:50%; text-align:center; font-size:.75em; color:$gr-l;}
 				span{
 					&::before{transform:translate(-50%, .67em);}
