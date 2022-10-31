@@ -74,6 +74,13 @@ const wxchart = new Chart(chart_ctx, {
 			label:'Humidity',
 			data: [],
 			lineTension: .5,
+			pointRadius: function(context){
+				const chart = context.chart,
+					{ctx, chartArea} = chart;
+		
+				if(!chartArea) return;
+				return ((context.raw) ? (context.raw.x < Date.now() ? 3 : 4) : 10);
+			},
 			borderColor: function(context){
 				const chart = context.chart,
 					{ctx, chartArea} = chart;
@@ -86,13 +93,20 @@ const wxchart = new Chart(chart_ctx, {
 					{ctx, chartArea} = chart;
 		
 				if(!chartArea) return;
-				return ((context.raw) ? (context.raw.x < Date.now() ? humidityGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,.5)');
+				return ((context.raw) ? (context.raw.x < Date.now() ? humidityGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,1)');
 			}
 			},
 		{
 			label:'Temp',
 			data: [],
 			lineTension: .5,
+			pointRadius: function(context){
+				const chart = context.chart,
+					{ctx, chartArea} = chart;
+		
+				if(!chartArea) return;
+				return ((context.raw) ? (context.raw.x < Date.now() ? 3 : 4) : 10);
+			},
 			borderColor: function(context){
 				const chart = context.chart,
 					{ctx, chartArea} = chart;
@@ -105,16 +119,21 @@ const wxchart = new Chart(chart_ctx, {
 					{ctx, chartArea} = chart;
 		
 				if(!chartArea) return;
-				return ((context.raw) ? (context.raw.x < Date.now() ? temperatureGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,.5)');
+				return ((context.raw) ? (context.raw.x < Date.now() ? temperatureGradient(ctx, chartArea) : 'rgba(0, 0, 0, 0)') : 'rgba(255,255,255,1)');
 			}},
 		{
 			label:'Dew Point',
 			data: [],
 			lineTension: .5,
-			borderColor: 'rgba(192, 192, 255, .5)',
 			borderWidth: 1,
 			pointRadius:0,
-			backgroundColor: 'rgba(0, 255, 255, 0)'},
+			borderColor: function(context){
+				const chart = context.chart,
+					{ctx, chartArea} = chart;
+		
+				if(!chartArea) return;
+				return temperatureGradient(ctx, chartArea);
+			}},
 		{
 			label:'Precip',
 			type: 'bar',
@@ -163,6 +182,13 @@ const wxchart = new Chart(chart_ctx, {
 });
 
 const mb2inHg = mb => Number((Math.round(1000 * mb * 0.0295301) / 1000)).toFixed(2);
+
+function calcDP(T, H){
+	const a = 17.27, b = 237.7;
+	let RH = H / 100;
+	
+	return (b * ((a * T) / (b + T) + Math.log(RH))) / (a - ((a * T) / (b + T) + Math.log(RH)))
+}
 
 function temperatureGradient(ctx, chartArea){
 	const chartWidth = chartArea.right - chartArea.left;
@@ -216,52 +242,55 @@ function updateDisplay(){
 	let now = new Date(),
 		precip = false,
 		nfo = '',
-		cur_rise = wxdata.current.sunrise * 1000,
-		cur_set = wxdata.current.sunset * 1000,
-		LoD = intervalToDuration({start:cur_rise, end:cur_set}),
-		cur_mrise = wxdata.daily[0].moonrise * 1000,
-		cur_mset = wxdata.daily[0].moonset * 1000,
-		LoM = intervalToDuration({start:cur_mrise, end:cur_mset});
-		
+		current_sunrise = wxdata.current.sunrise * 1000,
+		current_sunset = wxdata.current.sunset * 1000,
+		current_moonrise = wxdata.daily[0].moonrise * 1000,
+		current_moonset = wxdata.daily[0].moonset * 1000;
+	
 	//set display theme
-	if(now < cur_rise) body.className = 'predawn';
-	else if(now > cur_set) body.className = 'night';
-	else if(now > cur_rise && now < (cur_set - ((cur_set - cur_rise) / 2))) body.className = 'morn';
+	if(now < current_sunrise) body.className = 'predawn';
+	else if(now > current_sunset) body.className = 'night';
+	else if(now > current_sunrise && now < (current_sunset - ((current_sunset - current_sunrise) / 2))) body.className = 'morn';
 	else body.className = 'eve';
 	
 	//adjust rise/set times and log previous
-	if(sun.rise < cur_rise){
+	if(sun.rise < current_sunrise){
 		last.sunrise.setTime(sun.rise.getTime());
-		sun.rise.setTime(cur_rise);
+		sun.rise.setTime(current_sunrise);
 	}
-	if(now > cur_set){
+	if(now > current_sunset){
 		sun.rise.setTime(wxdata.daily[1].sunrise * 1000);
-		last.sunrise.setTime(cur_rise);
+		last.sunrise.setTime(current_sunrise);
 	}
-	if(sun.set < cur_set && now > cur_rise){
+	if(sun.set < current_sunset && now > current_sunrise){
 		last.sunset.setTime(sun.set.getTime());
-		sun.set.setTime(cur_set);
+		sun.set.setTime(current_sunset);
 	}
-	if(cur_mrise == 0){ //moon does not rise today
-		cur_mrise = wxdata.daily[1].moonrise * 1000;
+	if(current_moonrise == 0){ //moon does not rise today
+		current_moonrise = wxdata.daily[1].moonrise * 1000;
 		nfo += '| moon rise 0 |';
 	}
-	if(cur_mset == 0){ //moon does not set today
-		cur_mset = wxdata.daily[1].moonset * 1000;
+	if(current_moonset == 0){ //moon does not set today
+		current_moonset = wxdata.daily[1].moonset * 1000;
 		nfo += '| moon set 0 |';
 	}
-	if(moon.rise < cur_mrise){
+	if(moon.rise < current_moonrise){
 		last.moonrise.setTime(moon.rise.getTime());
-		moon.rise.setTime(cur_mrise);
+		moon.rise.setTime(current_moonrise);
 	}
-	if(now > cur_mset){
-		last.moonrise.setTime(cur_mrise);
+	if(now > current_moonset){
+		last.moonrise.setTime(current_moonrise);
 		moon.rise.setTime(wxdata.daily[1].moonrise * 1000);
 	}
-	if(moon.set < cur_mset){
+	if(moon.set < current_moonset){
 		last.moonset.setTime(moon.set.getTime());
-		moon.set.setTime(cur_mset);
+		moon.set.setTime(current_moonset);
 	}
+
+	let ml_start = (moon.rise > sun.set) ? moon.rise : sun.set,
+		ml_end = (moon.set > wxdata.daily[1].sunrise * 1000) ? wxdata.daily[1].sunrise * 1000 : moon.set,
+		moonlight = intervalToDuration({start:ml_start, end:ml_end}),
+		daylight = intervalToDuration({start:current_sunrise, end:current_sunset});
 
 	//populate the display
 	wxdisplay.querySelector('.temp .current').innerText = Math.round(wxdata.current.temp);
@@ -273,8 +302,8 @@ function updateDisplay(){
 	wxdisplay.querySelector('.sun .uvi').innerText = wxdata.current.uvi;
 	wxdisplay.querySelector('.sun .rise').innerHTML = sun.rise_str();
 	wxdisplay.querySelector('.sun .set').innerHTML = sun.set_str();
-	wxdisplay.querySelector('.sun .time .lod').innerHTML = `${LoD.hours}h:${LoD.minutes}m`;
-	wxdisplay.querySelector('.sun .time .lom').innerHTML = `${LoM.hours}h:${LoM.minutes}m`;
+	wxdisplay.querySelector('.sun .time .lod').innerHTML = `${daylight.hours}h:${daylight.minutes}m`;
+	wxdisplay.querySelector('.sun .time .lom').innerHTML = `${moonlight.hours}h:${moonlight.minutes}m`;
 	wxdisplay.querySelector('.moon .rise').innerHTML = moon.rise_str();
 	wxdisplay.querySelector('.moon .set').innerHTML = moon.set_str();
 	wxdisplay.querySelector('.moon .phase').innerHTML = moon.phase();
@@ -420,11 +449,6 @@ function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
 				});
 		}
 	}
-}
-
-function calcDP(T, H){
-	let a = 17.27, b = 237.7, RH = H / 100;
-	return (b * ((a * T) / (b + T) + Math.log(RH))) / (a - ((a * T) / (b + T) + Math.log(RH)))
 }
 
 //engage
