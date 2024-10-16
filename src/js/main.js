@@ -133,8 +133,8 @@ const wxchart = new Chart(chart_ctx, {
 		},
 		scales:{
 			y1:{
-				min:0,
-				max:100,
+				min:-10,
+				max:110,
 				ticks: {color:'rgb(224,224,224)'}
 			},
 			y2:{
