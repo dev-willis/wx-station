@@ -5,7 +5,10 @@ import format from 'date-fns/format';
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
 
 let apikey = '48ce79e682e5e8f79e39cc1374871d75', //do not steal
-	updateInterval = 10, //in minutes
+	normal_interval = 10, //in minutes
+	error_state = false,
+	error_interval = 1, //in minutes
+	update_interval = normal_interval,
 	tg_chart_w, tg_chart_h, hg_chart_w, hg_chart_h,temp_grad, hum_grad, update_i = 0,
 	chart_ctx = document.querySelector('#wxchart canvas').getContext('2d'),
 	wxdisplay = document.querySelector('#wxdisplay'),
@@ -324,7 +327,7 @@ function updateDisplay(){
 
 //OWM's One Call API
 function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
-	fetch(new Request('https://api.openweathermap.org/data/2.5/onecall?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
+	fetch(new Request('https://api.openweathermap.org/data/3.0/onecall?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
 		.then(response => response.json())
 		.then(json => {
 			Object.assign(wxdata,json);
@@ -390,7 +393,10 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			last.update.setTime(now.getTime());
 			localStorage.last = JSON.stringify(last);
 			document.body.classList.remove('error');
+			error_state = false;
 		}).catch(error => {
+			error_state = true;
+			console.error('oc err:', error);
 			document.body.classList.add('error');
 			//document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);
 		});
@@ -400,6 +406,7 @@ function getWX(lat = 36.16754647878633, lon = -86.21153419024921){
 	fetch(new Request('https://api.openweathermap.org/data/2.5/weather?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
 		.then(response => response.json())
 		.then(json => {
+			error_state = false;
 			Object.assign(wxdata,json);
 			
 			//so there's only one place to look for these
@@ -408,7 +415,11 @@ function getWX(lat = 36.16754647878633, lon = -86.21153419024921){
 			wxdata.current.pressure = json.main.pressure;
 
 			updateDisplay();
-		}).catch(error => {document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);});
+		}).catch(error => {
+			document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss');
+			console.error('wx err:', error);
+			error_state = true;
+		});
 }
 
 function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
@@ -457,7 +468,16 @@ getOC();
 //clock
 setInterval(() => wxdisplay.querySelector('.sun .time .current').innerText = format(Date.now(), 'HH:mm:ss'), (1000));
 
-//refresh current data per updateInterval but forecast only once an hour
-setInterval(() => ++update_i >= 60 / updateInterval ? getOC() : getWX(), (updateInterval * 60 * 1000));
+//refresh current data per update_interval but forecast only once an hour
+//setInterval(() => ++update_i >= 60 / update_interval ? getOC() : getWX(), (update_interval * 60 * 1000));
+let intervalId;
+function updateWeather() {
+	update_interval = error_state ? error_interval : normal_interval;
+	++update_i >= 60 / update_interval ? getOC() : getWX();
+
+	clearInterval(intervalId);
+	intervalId = setInterval(updateWeather, update_interval * 60 * 1000);
+}
+intervalId = setInterval(updateWeather, update_interval * 60 * 1000);
 
 body.addEventListener('click', () => document.documentElement.requestFullscreen(), {once:true});
