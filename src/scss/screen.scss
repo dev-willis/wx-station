@@ -3,11 +3,12 @@
 
 @import '../icomoon/style';
 
+
 body{background:no-repeat center; background-size:cover;
-	&.morn{background-image:url('/assets/img/bg-morn.jpg');}
-	&.eve{background-image:url('/assets/img/bg-eve.jpg');}
-	&.night{background-image:url('/assets/img/bg-night.jpg');}
-	&.predawn{background-image:url('/assets/img/bg-predawn.jpg');}
+	&.morn{background-image:url('/assets/goodwx/img/bg-morn.jpg');}
+	&.eve{background-image:url('/assets/goodwx/img/bg-eve.jpg');}
+	&.night{background-image:url('/assets/goodwx/img/bg-night.jpg');}
+	&.predawn{background-image:url('/assets/goodwx/img/bg-predawn.jpg');}
 	&.error main #wxdisplay{color:hsl(0, 0%, 77%) !important;}
 	main{height:100vh; overflow:hidden; display:flex; flex-direction:column; background:color.adjust($bk, $alpha:-.75);
 		section{width:100%;}
