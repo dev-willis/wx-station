@@ -155,7 +155,7 @@ const wxchart = new Chart(chart_ctx, {
 		},
 		scales:{
 			y1:{
-				min:-10,
+				min:[11,0,1,2].includes(new Date().getMonth()) ? -10 : 0, //allow chart to show below-zero temps in winter months
 				max:110,
 				ticks: {color:'rgb(224,224,224)'}
 			},
@@ -186,7 +186,7 @@ const wxchart = new Chart(chart_ctx, {
 
 const mb2inHg = mb => Number((Math.round(1000 * mb * 0.0295301) / 1000)).toFixed(2);
 
-function calcDP(T, H){
+function calcDewPoint(T, H){
 	const a = 17.27, b = 237.7;
 	let RH = H / 100;
 	
@@ -250,6 +250,10 @@ function updateDisplay(){
 		current_moonrise = wxdata.daily[0].moonrise * 1000,
 		current_moonset = wxdata.daily[0].moonset * 1000;
 	
+	//update chart scale
+	wxchart.options.scales.y1.min = [11,0,1,2].includes(now.getMonth()) ? -10 : 0;
+	wxchart.update();
+	
 	//set display theme
 	if(now < current_sunrise) body.className = 'predawn';
 	else if(now > current_sunset) body.className = 'night';
@@ -271,11 +275,9 @@ function updateDisplay(){
 	}
 	if(current_moonrise == 0){ //moon does not rise today
 		current_moonrise = wxdata.daily[1].moonrise * 1000;
-		nfo += '| moon rise 0 |';
 	}
 	if(current_moonset == 0){ //moon does not set today
 		current_moonset = wxdata.daily[1].moonset * 1000;
-		nfo += '| moon set 0 |';
 	}
 	if(moon.rise < current_moonrise){
 		last.moonrise.setTime(moon.rise.getTime());
@@ -366,7 +368,7 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(y.pressure)});
 				wxchart.data.datasets[1].data.push({x: x, y: y.humidity});
 				wxchart.data.datasets[2].data.push({x: x, y: y.temp});
-				wxchart.data.datasets[3].data.push({x: x, y: calcDP(y.temp, y.humidity)});
+				wxchart.data.datasets[3].data.push({x: x, y: calcDewPoint(y.temp, y.humidity)});
 				wxchart.data.datasets[4].data.push({x: x, y: 0});
 			});
 			
@@ -379,7 +381,7 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(hour.pressure)});
 				wxchart.data.datasets[1].data.push({x: x, y: hour.humidity});
 				wxchart.data.datasets[2].data.push({x: x, y: hour.temp});
-				wxchart.data.datasets[3].data.push({x: x, y: calcDP(hour.temp, hour.humidity)});
+				wxchart.data.datasets[3].data.push({x: x, y: calcDewPoint(hour.temp, hour.humidity)});
 				wxchart.data.datasets[4].data.push({x: x, y: (hour.pop * 100)});
 
 				if(x < nextrise && hour.temp < low) low = hour.temp;

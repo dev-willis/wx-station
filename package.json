@@ -18,7 +18,7 @@
 		"deploy:js": "npm run build:js && node deploy.cjs \"/dist/js\" \"%npm_package_config_assets%/js\"",
 		"deploy:all": "node deploy.cjs \"/dist\" \"%npm_package_config_assets%\"",
 		"deploy:prod": "npm run build:js && npm run build:css && npm run prefix && npm run deploy:all",
-		"watch:css": "onchange -k \"src/scss/*.scss\" -- npm run deploy:css",
+		"watch:css": "onchange -k \"src/scss/*.scss\" -- npm run build:css",
 		"watch:js": "onchange -k \"src/js/*.js\" -- npm run deploy:js",
 		"watch": "concurrently \"npm run watch:css\" \"npm run watch:js\""
 	},

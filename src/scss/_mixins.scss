@@ -1,4 +1,7 @@
 @use 'vars' as *;
+@use 'sass:string';
+@use 'sass:color';
+@use 'sass:math';
 
 @mixin hfont{font-family:$hfont; font-weight:$hfont_weight;}
 @mixin pfont{font-family:$pfont; font-weight:$pfont_weight;}
@@ -48,21 +51,45 @@
     0 25.4px 40.7px rgba(0, 0, 0, 0.055),
     0 73px 73px rgba(0, 0, 0, 0.07);
 }
-@mixin gradborder($dir){
-    border-image-slice:1;
-    @if $dir == l2r{
-        border-image-source:linear-gradient(-90deg, #263a79, #004e8e, #006198, #007399, #00828f, #00917e, #009e69, #5aa854);
-    }
-    @else if $dir == r2l{
-        border-image-source:linear-gradient(90deg, #263a79, #004e8e, #006198, #007399, #00828f, #00917e, #009e69, #5aa854);
-    }
-    @else if $dir == inner{
-        border-image-source:linear-gradient(90deg, #5aa854, #009e69, #00917e, #00828f, #007399, #006198, #004e8e, #263a79, #263a79, #004e8e, #006198, #007399, #00828f, #00917e, #009e69, #5aa854);
-    }
-    @else if $dir == outer{
-        border-image-source:linear-gradient(90deg, #263a79, #004e8e, #006198, #007399, #00828f, #00917e, #009e69, #5aa854, #5aa854, #009e69, #00917e, #00828f, #007399, #006198, #004e8e, #263a79);
-    }
+
+@function grad-gen($color1, $color2, $type:linear, $options:'0'){
+	$stops: 24;
+
+	$hue1: hue($color1);
+	$saturation1: saturation($color1);
+	$brightness1: lightness($color1);
+
+	$hue2: hue($color2);
+	$saturation2: saturation($color2);
+	$brightness2: lightness($color2);
+
+	$color-stops: ();
+	@for $i from 1 through $stops {
+		$percentage: percentage(math.div(($i - 1), ($stops - 1)));
+		$hue: $hue1 + (math.div(($hue2 - $hue1), ($stops - 1)) * ($i - 1));
+		$saturation: $saturation1 + math.div(($saturation2 - $saturation1), ($stops - 1)) * ($i - 1);
+		$brightness: $brightness1 + math.div(($brightness2 - $brightness1), ($stops - 1)) * ($i - 1);
+		$color: hsl($hue, $saturation, $brightness);
+		$color-stops: append($color-stops, $color $percentage, comma);
+	}
+
+	@if $type == linear{
+		@return linear-gradient(string.unquote($options), $color-stops);
+	}@else if $type == radial{
+		@return radial-gradient(string.unquote($options), $color-stops);
+	}@else if $type == conical{
+		@return conical-gradient(string.unquote($options), $color-stops);
+	}
+	
 }
+
+@mixin gradient_bdr($color1, $color2, $type:radial, $options:'circle at 100% 0%', $width:'3px'){
+	border-image-slice:1;
+	border-image-source:grad-gen($color1, $color2, $type, $options);
+	border-width:$width;
+	border-style:solid;
+}
+
 @mixin dropcap{font-size:4em; line-height:.75em; @include hfont; float:left;}
 
 //css backgrounds===============================================================
