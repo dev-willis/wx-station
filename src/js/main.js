@@ -332,7 +332,7 @@ function updateDisplay(){
 //retrieval and storage now happen server-side (see server/); the browser
 //just reads back whatever the cron jobs already fetched for this location
 function fetchWeather(){
-	fetch(new Request('/server/api/weather.php?location=' + encodeURIComponent(location_slug)))
+	fetch(new Request('/wx-serve/api/weather.php?location=' + encodeURIComponent(location_slug)))
 		.then(response => {
 			if(!response.ok) throw new Error('HTTP ' + response.status);
 			return response.json();

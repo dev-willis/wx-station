@@ -86,22 +86,38 @@ listing) has nothing sensitive to expose.
         ├── bootstrap.php  weather.php  locations.php
 ```
 
-`api/bootstrap.php` finds the app directory through the `WX_APP_DIR`
-environment variable — set it in the PHP-FPM pool or vhost:
+`api/bootstrap.php` locates the app directory in this order:
 
-```ini
-; PHP-FPM pool
-env[WX_APP_DIR] = /var/www/wx-station-app
-```
-```apache
-# Apache mod_php / SetEnv
-SetEnv WX_APP_DIR /var/www/wx-station-app
-```
+1. `$_SERVER['WX_APP_DIR']` — set by the web server:
 
-If `WX_APP_DIR` is unset, bootstrap falls back to `api/`'s parent
-directory — i.e. an intact checkout where everything is still under
-`server/`. That's the local-dev and CI layout; keep it split in
-production.
+   ```apache
+   # Apache (mod_php or mod_proxy_fcgi)
+   SetEnv WX_APP_DIR /var/www/wx-station-app
+   ```
+   ```nginx
+   # nginx: in the location that runs PHP
+   fastcgi_param WX_APP_DIR /var/www/wx-station-app;
+   ```
+
+2. `getenv('WX_APP_DIR')` — set in the PHP-FPM **pool** config (an
+   Apache/nginx `SetEnv`/`fastcgi_param` does *not* reach `getenv()`, only
+   `$_SERVER`; the pool `env[]` reaches both):
+
+   ```ini
+   ; /etc/php/8.x/fpm/pool.d/wx-station.conf
+   env[WX_APP_DIR] = /var/www/wx-station-app
+   ```
+   Reload PHP-FPM after editing (`systemctl reload php8.x-fpm`).
+
+3. `api/app_dir.php` — a gitignored file that just `return`s the path, for
+   shared hosts where you can't set env vars at all. Copy
+   `api/app_dir.php.example` to `api/app_dir.php` and edit the path.
+
+4. Otherwise `api/`'s parent directory — the intact-checkout layout used
+   for local dev and CI. Keep it split in production.
+
+On a 500 with `{"error":"Server misconfigured..."}` the response's `tried`
+field and the PHP error log show which path it resolved to.
 
 The cron scripts and `install.php` run from the app directory with their
 own relative `require`s, so they need no environment variable.

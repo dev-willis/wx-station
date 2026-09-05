@@ -1,3 +1,4 @@
 node_modules/
 dist/
 server/config.local.php
+server/api/app_dir.php

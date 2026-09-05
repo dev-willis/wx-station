@@ -1,0 +1,6 @@
+<?php
+// Copy to app_dir.php (gitignored) on hosts where you can't set the
+// WX_APP_DIR environment variable for PHP. Return the absolute path to the
+// directory holding config.php / db.php / lib/ — i.e. where you moved
+// everything except api/.
+return '/home/goodwx';
