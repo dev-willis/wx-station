@@ -4,12 +4,14 @@ import { intervalToDuration } from 'date-fns';
 import format from 'date-fns/format';
 import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
 
-let apikey = '48ce79e682e5e8f79e39cc1374871d75', //do not steal
+let apikey = '48ce79e682e5e8f79e39cc1374871d75', //map tiles only; weather data now comes from our own server
+	location_slug = new URLSearchParams(window.location.search).get('loc') || 'default',
+	last_storage_key = 'wx_last_' + location_slug,
 	normal_interval = 10, //in minutes
 	error_state = false,
 	error_interval = 1, //in minutes
 	update_interval = normal_interval,
-	tg_chart_w, tg_chart_h, hg_chart_w, hg_chart_h,temp_grad, hum_grad, update_i = 0,
+	tg_chart_w, tg_chart_h, hg_chart_w, hg_chart_h,temp_grad, hum_grad,
 	chart_ctx = document.querySelector('#wxchart canvas').getContext('2d'),
 	wxdisplay = document.querySelector('#wxdisplay'),
 	body = document.body,
@@ -47,8 +49,8 @@ let apikey = '48ce79e682e5e8f79e39cc1374871d75', //do not steal
 		}
 	};
 
-//initialize last object
-if(localStorage.last) last = JSON.parse(localStorage.last);
+//initialize last object (namespaced per location so switching ?loc= doesn't mix astro history)
+if(localStorage[last_storage_key]) last = JSON.parse(localStorage[last_storage_key]);
 last.update = new Date(last.update);
 last.sunrise = new Date(last.sunrise);
 last.sunset = new Date(last.sunset);
@@ -327,32 +329,19 @@ function updateDisplay(){
 	document.querySelector('#nfo').innerHTML = nfo;
 }
 
-//OWM's One Call API
-function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
-	fetch(new Request('https://api.openweathermap.org/data/3.0/onecall?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
-		.then(response => response.json())
+//retrieval and storage now happen server-side (see server/); the browser
+//just reads back whatever the cron jobs already fetched for this location
+function fetchWeather(){
+	fetch(new Request('/server/api/weather.php?location=' + encodeURIComponent(location_slug)))
+		.then(response => {
+			if(!response.ok) throw new Error('HTTP ' + response.status);
+			return response.json();
+		})
 		.then(json => {
 			Object.assign(wxdata,json);
 
-			let logdata = {'temp': wxdata.current.temp, 'humidity': wxdata.current.humidity, 'pressure': wxdata.current.pressure},
-				wxlog = new Array(),
-				now = new Date();
-			
-			//remove old log entries and add the rest to an array
-			Object.entries(localStorage).forEach(([key, val]) => {
-				if(parseInt(key)){
-					let entry_date = new Date(parseInt(key)),
-						cutoff_date = new Date(now - (48 * 60 * 60 * 1000));
-					
-					if(entry_date < cutoff_date) localStorage.removeItem(key);
-					else wxlog.push([key,val]);
-				}
-			});
-			wxlog.sort((a, b) => parseInt(a) - parseInt(b));
-			
-			//log current data
-			if(last.update < now - 30 * 60 * 1000) localStorage.setItem(now.getTime(), JSON.stringify(logdata));
-			
+			let now = new Date();
+
 			//reset chart data
 			wxchart.data.datasets[0].data = [];
 			wxchart.data.datasets[1].data = [];
@@ -360,19 +349,16 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			wxchart.data.datasets[3].data = [];
 			wxchart.data.datasets[4].data = [];
 
-			//add logged data to chart
-			wxlog.forEach(point => {
-				let y = JSON.parse(point[1]),
-					x = parseInt(point[0]);
-				
-				wxchart.data.datasets[0].data.push({x: x, y: mb2inHg(y.pressure)});
-				wxchart.data.datasets[1].data.push({x: x, y: y.humidity});
-				wxchart.data.datasets[2].data.push({x: x, y: y.temp});
-				wxchart.data.datasets[3].data.push({x: x, y: calcDewPoint(y.temp, y.humidity)});
-				wxchart.data.datasets[4].data.push({x: x, y: 0});
+			//add logged history to chart
+			json.log.forEach(point => {
+				wxchart.data.datasets[0].data.push({x: point.t, y: mb2inHg(point.pressure)});
+				wxchart.data.datasets[1].data.push({x: point.t, y: point.humidity});
+				wxchart.data.datasets[2].data.push({x: point.t, y: point.temp});
+				wxchart.data.datasets[3].data.push({x: point.t, y: calcDewPoint(point.temp, point.humidity)});
+				wxchart.data.datasets[4].data.push({x: point.t, y: 0});
 			});
-			
-			//add forecase data to chart and determine overnight low
+
+			//add forecast data to chart and determine overnight low
 			let low = 99;
 			wxdata.hourly.forEach(hour => {
 				let x = hour.dt * 1000,
@@ -391,41 +377,21 @@ function getOC(lat = 36.16754647878633, lon = -86.21153419024921){
 			updateDisplay();
 			wxchart.update();
 
-			update_i = 0;
 			last.update.setTime(now.getTime());
-			localStorage.last = JSON.stringify(last);
+			localStorage[last_storage_key] = JSON.stringify(last);
 			document.body.classList.remove('error');
 			error_state = false;
 		}).catch(error => {
 			error_state = true;
-			console.error('oc err:', error);
+			console.error('weather fetch err:', error);
 			document.body.classList.add('error');
-			//document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss'); console.error(error);
 		});
 }
 
-function getWX(lat = 36.16754647878633, lon = -86.21153419024921){
-	fetch(new Request('https://api.openweathermap.org/data/2.5/weather?units=imperial&lat='+lat+'&lon='+lon+'&appid='+apikey))
-		.then(response => response.json())
-		.then(json => {
-			error_state = false;
-			Object.assign(wxdata,json);
-			
-			//so there's only one place to look for these
-			wxdata.current.temp = json.main.temp;
-			wxdata.current.humidity = json.main.humidity;
-			wxdata.current.pressure = json.main.pressure;
-
-			updateDisplay();
-		}).catch(error => {
-			document.querySelector('#nfo').innerHTML = error + ' | ' + format(new Date(), 'HH:mm:ss');
-			console.error('wx err:', error);
-			error_state = true;
-		});
-}
-
-function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
-	let n = 2 ** zoom,
+function getMap(zoom = 6){
+	let lat = wxdata.location.lat,
+		lon = wxdata.location.lon,
+		n = 2 ** zoom,
 		xtile = Math.floor((lon + 180) / 360 * n),
 		ytile = Math.floor((1 - Math.log(Math.tan(lat * Math.PI / 180) + 1 / Math.cos(lat * Math.PI / 180)) / Math.PI) / 2 * n),
 		wxcanvas = document.querySelector('#wxmap canvas'),
@@ -465,17 +431,17 @@ function getMap(zoom = 6, lat = 36.1467, lon = -86.8250){
 }
 
 //engage
-getOC();
+fetchWeather();
 
 //clock
 setInterval(() => wxdisplay.querySelector('.sun .time .current').innerText = format(Date.now(), 'HH:mm:ss'), (1000));
 
-//refresh current data per update_interval but forecast only once an hour
-//setInterval(() => ++update_i >= 60 / update_interval ? getOC() : getWX(), (update_interval * 60 * 1000));
+//poll our own server per update_interval; it already staggers the actual
+//OpenWeatherMap calls on its own schedule, so every tick here is a cheap DB read
 let intervalId;
 function updateWeather() {
 	update_interval = error_state ? error_interval : normal_interval;
-	++update_i >= 60 / update_interval ? getOC() : getWX();
+	fetchWeather();
 
 	clearInterval(intervalId);
 	intervalId = setInterval(updateWeather, update_interval * 60 * 1000);

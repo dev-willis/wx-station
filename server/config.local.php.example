@@ -1,0 +1,13 @@
+<?php
+// Copy to config.local.php (gitignored) to override settings for local
+// development instead of exporting environment variables.
+return [
+    'db' => [
+        'host' => '127.0.0.1',
+        'port' => '3306',
+        'name' => 'wx_station',
+        'user' => 'wx_station',
+        'pass' => 'change-me',
+    ],
+    'owm_api_key' => 'your-openweathermap-api-key',
+];
