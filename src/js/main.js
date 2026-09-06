@@ -293,7 +293,7 @@ function updateDisplay(){
 	document.querySelector('#nfo').innerHTML = nfo;
 }
 
-//retrieval and storage now happen server-side (see server/); the browser
+//retrieval and storage now happen server-side (see wx-serve/); the browser
 //just reads back whatever the cron jobs already fetched for this location
 function fetchWeather(){
 	fetch(new Request('/wx-serve/api/weather.php?location=' + encodeURIComponent(location_slug)))

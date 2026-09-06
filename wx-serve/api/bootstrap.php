@@ -11,7 +11,7 @@
  *   2. getenv('WX_APP_DIR')    — PHP-FPM pool `env[WX_APP_DIR]`, CLI export
  *   3. api/app_dir.php         — a gitignored file that `return`s the path
  *                                (use this on hosts where you can't set env)
- *   4. dirname(__DIR__)        — intact checkout: everything still under server/
+ *   4. dirname(__DIR__)        — intact checkout: everything still under wx-serve/
  */
 
 declare(strict_types=1);
@@ -32,7 +32,7 @@ $wx_app_dir = rtrim($wx_app_dir, '/');
 
 if ($wx_app_dir === '' || !is_file($wx_app_dir . '/db.php')) {
     error_log('wx-station: app directory not found (tried "' . $wx_app_dir . '"). '
-        . 'Set WX_APP_DIR or create server/api/app_dir.php.');
+        . 'Set WX_APP_DIR or create wx-serve/api/app_dir.php.');
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
     echo json_encode([

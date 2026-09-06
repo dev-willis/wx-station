@@ -9,7 +9,7 @@
  *                for the current user, inside a managed "# wx-station" block.
  *
  * Usage:
- *   php server/install.php [options]
+ *   php wx-serve/install.php [options]
  *
  * Options:
  *   --schema-only            Run the schema step, skip cron.
@@ -178,7 +178,7 @@ function install_cron(
     section('Cron');
 
     if (!command_exists('crontab')) {
-        fail("'crontab' not found in PATH — install cron or run with --schema-only and add the jobs manually (see server/README.md).");
+        fail("'crontab' not found in PATH — install cron or run with --schema-only and add the jobs manually (see wx-serve/README.md).");
     }
 
     $php_bin = resolve_php_bin($php_bin);
@@ -192,7 +192,7 @@ function install_cron(
     $forecast_script = $server_dir . '/cron/fetch_forecast.php';
 
     $block_lines = [
-        '# BEGIN wx-station (managed by server/install.php — edits here are overwritten on re-run)',
+        '# BEGIN wx-station (managed by wx-serve/install.php — edits here are overwritten on re-run)',
         sprintf('%s %s %s >> %s/wx_current.log 2>&1',  $current_schedule,  escape_cron_arg($php_bin), escape_cron_arg($current_script),  $log_dir),
         sprintf('%s %s %s >> %s/wx_forecast.log 2>&1', $forecast_schedule, escape_cron_arg($php_bin), escape_cron_arg($forecast_script), $log_dir),
         '# END wx-station',
@@ -323,7 +323,7 @@ function extract_doc_comment(string $file): string
         $body = preg_replace('/^\s*\* ?/m', '', trim($m[1]));
         return $body . "\n";
     }
-    return "See the top of server/install.php for usage.\n";
+    return "See the top of wx-serve/install.php for usage.\n";
 }
 
 function section(string $title): void
@@ -349,7 +349,7 @@ function print_next_steps(string $server_dir, bool $did_schema, bool $did_cron):
     $config_local = $server_dir . '/config.local.php';
     if (!is_file($config_local)) {
         info("- Create credentials: copy config.local.php.example to config.local.php and set the DB");
-        info("  password + owm_api_key (or use environment variables — see server/README.md).");
+        info("  password + owm_api_key (or use environment variables — see wx-serve/README.md).");
     } else {
         info("- Confirm config.local.php has a real DB password and owm_api_key.");
     }
@@ -365,5 +365,5 @@ function print_next_steps(string $server_dir, bool $did_schema, bool $did_cron):
         info("    php " . $server_dir . "/cron/fetch_forecast.php");
     }
 
-    info("- Point the web server at server/api/ and confirm api/weather.php?location=default returns JSON.");
+    info("- Point the web server at wx-serve/api/ and confirm api/weather.php?location=default returns JSON.");
 }

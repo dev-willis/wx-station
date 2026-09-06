@@ -24,7 +24,7 @@ tracked independently from the same database and the same cron jobs.
 2. Run the installer:
 
    ```
-   php server/install.php
+   php wx-serve/install.php
    ```
 
    It applies `schema.sql` through the configured connection and installs
@@ -47,23 +47,23 @@ tracked independently from the same database and the same cron jobs.
    Doing it by hand instead:
 
    ```
-   mysql -u root -p wx_station < server/schema.sql
+   mysql -u root -p wx_station < wx-serve/schema.sql
    ```
    ```cron
-   */10 * * * * php /path/to/server/cron/fetch_current.php  >> /var/log/wx_current.log 2>&1
-   0    * * * * php /path/to/server/cron/fetch_forecast.php >> /var/log/wx_forecast.log 2>&1
+   */10 * * * * php /path/to/wx-serve/cron/fetch_current.php  >> /var/log/wx_current.log 2>&1
+   0    * * * * php /path/to/wx-serve/cron/fetch_forecast.php >> /var/log/wx_forecast.log 2>&1
    ```
 
 3. Prime the tables by running both cron scripts once, so `wx_current` has
    an initial row before the browser's first request:
 
    ```
-   php server/cron/fetch_current.php
-   php server/cron/fetch_forecast.php
+   php wx-serve/cron/fetch_current.php
+   php wx-serve/cron/fetch_forecast.php
    ```
 
 4. Deploy the files — see "File layout on the server" below. `main.js`
-   calls `/server/api/weather.php?location=<slug>`, so `api/` must be
+   calls `/wx-serve/api/weather.php?location=<slug>`, so `api/` must be
    reachable at that URL path; adjust `main.js` if you serve it elsewhere.
 
 ## File layout on the server
@@ -81,7 +81,7 @@ listing) has nothing sensitive to expose.
 
 <web root>/
 ├── index.html  src/  …         ← the static frontend
-└── server/
+└── wx-serve/
     └── api/                    ← the only PHP the web server sees
         ├── bootstrap.php  weather.php  locations.php
 ```
