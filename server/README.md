@@ -156,7 +156,26 @@ The next cron run picks it up automatically. Load the frontend with
 ## Endpoints
 
 - `GET api/weather.php?location=<slug>` — current conditions, hourly/daily
-  forecast, and up to 48 hours of observation history for one location.
-  404 if the location doesn't exist, 503 if no data has been fetched yet.
+  forecast, ~48 h of observation history (`log`), and recent daily
+  astronomical events (`astro`, used for the day-over-day sunrise/sunset
+  deltas) for one location. 404 if the location doesn't exist, 503 if no
+  data has been fetched yet.
+- `GET api/history.php?location=<slug>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>` —
+  the raw append-only archive (`log` + `astro`) over an arbitrary date
+  range, for a historical view. Dates are UTC and optional (default: last
+  7 days); range capped at 366 days.
 - `GET api/locations.php` — list of active locations (`slug`, `name`,
   `lat`, `lon`).
+
+## History tables
+
+`wx_log` (hourly observations) and `wx_astro` (daily sun/moon events) are
+append-only — the cron scripts never delete from them — so the archive
+grows indefinitely and any client sees the same history without collecting
+it locally. `wx_astro` is populated from the daily forecast on every
+`fetch_forecast.php` run; the first day-over-day delta appears once two
+days of runs have accumulated.
+
+After pulling a schema change, re-run `php install.php --schema-only` (or
+`--cron-only` to skip straight past it) — `schema.sql` uses
+`CREATE TABLE IF NOT EXISTS`, so it only adds what's missing.

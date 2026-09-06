@@ -45,3 +45,4 @@ if ($wx_app_dir === '' || !is_file($wx_app_dir . '/db.php')) {
 require $wx_app_dir . '/db.php';
 require $wx_app_dir . '/lib/http.php';
 require $wx_app_dir . '/lib/locations.php';
+require $wx_app_dir . '/lib/archive.php';

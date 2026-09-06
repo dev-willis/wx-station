@@ -40,7 +40,8 @@ wx_json_response([
     'current' => $current,
     'hourly'  => fetch_hourly($pdo, $location_id),
     'daily'   => fetch_daily($pdo, $location_id),
-    'log'     => fetch_log($pdo, $location_id),
+    'log'     => wx_log_between($pdo, $location_id, time() - 48 * 3600, time()),
+    'astro'   => wx_astro_between($pdo, $location_id, time() - 16 * 86400, time() + 3 * 86400),
 ]);
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -119,27 +120,6 @@ function fetch_daily(PDO $pdo, int $location_id): array
                 'id'   => (int) $row['weather_id'],
                 'main' => $row['weather_main'],
             ]],
-        ];
-    }, $stmt->fetchAll());
-}
-
-function fetch_log(PDO $pdo, int $location_id): array
-{
-    $cutoff = time() - 48 * 3600;
-    $stmt = $pdo->prepare('
-        SELECT recorded_at, temp, humidity, pressure
-        FROM wx_log
-        WHERE location_id = :location_id AND recorded_at >= :cutoff
-        ORDER BY recorded_at ASC
-    ');
-    $stmt->execute(['location_id' => $location_id, 'cutoff' => $cutoff]);
-
-    return array_map(static function (array $row): array {
-        return [
-            't'        => (int) $row['recorded_at'] * 1000,
-            'temp'     => (float) $row['temp'],
-            'humidity' => (int) $row['humidity'],
-            'pressure' => (int) $row['pressure'],
         ];
     }, $stmt->fetchAll());
 }

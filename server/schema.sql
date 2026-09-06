@@ -76,6 +76,23 @@ CREATE TABLE IF NOT EXISTS wx_daily (
     CONSTRAINT fk_wx_daily_location FOREIGN KEY (location_id) REFERENCES wx_locations(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
 
+-- Permanent per-day astronomical events. Unlike wx_daily (which is wiped
+-- and rewritten each forecast run), rows here are upserted and never
+-- deleted, so yesterday's sunrise/sunset is still available for the
+-- day-over-day delta display and for a historical view. dt is OWM's daily
+-- anchor (noon, local to the location).
+CREATE TABLE IF NOT EXISTS wx_astro (
+    location_id INT UNSIGNED NOT NULL,
+    dt INT UNSIGNED NOT NULL,
+    sunrise INT UNSIGNED NOT NULL DEFAULT 0,
+    sunset INT UNSIGNED NOT NULL DEFAULT 0,
+    moonrise INT UNSIGNED NOT NULL DEFAULT 0,
+    moonset INT UNSIGNED NOT NULL DEFAULT 0,
+    moon_phase DECIMAL(4,2) NOT NULL DEFAULT 0,
+    PRIMARY KEY (location_id, dt),
+    CONSTRAINT fk_wx_astro_location FOREIGN KEY (location_id) REFERENCES wx_locations(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4;
+
 -- Permanent observation history per location, replacing the old
 -- localStorage-based log kept in the browser.
 CREATE TABLE IF NOT EXISTS wx_log (

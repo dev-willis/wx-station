@@ -6,7 +6,6 @@ import formatDistanceToNowStrict from 'date-fns/formatDistanceToNowStrict';
 
 let apikey = '48ce79e682e5e8f79e39cc1374871d75', //map tiles only; weather data now comes from our own server
 	location_slug = new URLSearchParams(window.location.search).get('loc') || 'default',
-	last_storage_key = 'wx_last_' + location_slug,
 	normal_interval = 10, //in minutes
 	error_state = false,
 	error_interval = 1, //in minutes
@@ -15,53 +14,11 @@ let apikey = '48ce79e682e5e8f79e39cc1374871d75', //map tiles only; weather data 
 	chart_ctx = document.querySelector('#wxchart canvas').getContext('2d'),
 	wxdisplay = document.querySelector('#wxdisplay'),
 	body = document.body,
-	wxdata = {},
-	last = {
-		update:0, sunrise:0, sunset:0, moonrise:0, moonset:0,
-		temp:{
-			high:{
-				predicted:0,
-				recorded:0,
-				actual:0
-			},
-			low:{
-				predicted:0,
-				recorded:0,
-				actual:0
-			}}
-	},
-	sun = {
-		rise:null, set:null,
-		rise_str	: function(){return astroStrTpl`${this.rise}${last.sunrise}`;},
-		set_str		: function(){return astroStrTpl`${this.set}${last.sunset}`;},
-	},
-	moon = {
-		rise:null, set:null,
-		rise_str	: function(){return astroStrTpl`${this.rise}${last.moonrise}`;},
-		set_str		: function(){return astroStrTpl`${this.set}${last.moonset}`;},
-		phase		: () => {
-						let p = wxdata.daily[0].moon_phase;
-						
-						if(p == 0) return '<small>NEW</small>';
-						else if(p == .5) return '<small>FULL</small>';
-						else if(p < .5) return `+${Math.round(p * 200)}%`;
-						else if(p > .5) return `-${Math.round((1 - p) * 200)}%`;
-		}
-	};
+	wxdata = {};
 
-//initialize last object (namespaced per location so switching ?loc= doesn't mix astro history)
-if(localStorage[last_storage_key]) last = JSON.parse(localStorage[last_storage_key]);
-last.update = new Date(last.update);
-last.sunrise = new Date(last.sunrise);
-last.sunset = new Date(last.sunset);
-last.moonrise = new Date(last.moonrise);
-last.moonset = new Date(last.moonset);
-
-//initialize astro objects
-sun.rise = new Date(last.sunrise.getTime());
-sun.set = new Date(last.sunset.getTime());
-moon.rise = new Date(last.moonrise.getTime());
-moon.set = new Date(last.moonset.getTime());
+//everything shown — the current conditions, the chart history, and the
+//day-over-day astro deltas — now arrives from the server on every fetch,
+//so there is no local state to bootstrap here
 
 const wxchart = new Chart(chart_ctx, {
 	type:'line',
@@ -232,99 +189,106 @@ function humidityGradient(ctx, chartArea){
 	return hum_grad;
 }
 
-function astroStrTpl(strs, current, previous){
-	let delta = Math.round(current - previous - 24 * 60 * 60 * 1000) / 1000,
+//pull the previous day's occurrence of an astro event out of the stored
+//history (json.astro) so the day-over-day delta shows on any client right
+//away, without it having to watch the change happen itself
+function previousEvent(field, event_sec){
+	if(!event_sec) return null;
+
+	let day = wxdata.daily.find(d => d[field] === event_sec),
+		prev = null;
+
+	if(day) for(const row of (wxdata.astro || [])){
+		if(row.dt < day.dt && row[field]) prev = row[field];
+	}
+
+	return prev;
+}
+
+//"06:42 <Δ -1m:04s> (+3h ago)" — current/previous are unix seconds
+function astroStr(current_sec, previous_sec){
+	let current = current_sec * 1000,
+		rel = `<small>(${Date.now() > current ? '+' : '-'}${formatDistanceToNowStrict(current)})</small>`;
+
+	if(!previous_sec) return `${format(current, 'HH:mm')} ${rel}`;
+
+	let delta = Math.round(current_sec - previous_sec - 86400),
 		m = Math.abs(Math.trunc(delta / 60)),
 		s = Math.abs(delta % 60),
-		d_sign = delta < 0 ? '-' : '',
-		d_time = (m > 0 ? m+'m' : '') + (m > 0 && s > 0 ? ':' : '') + (s > 0 ? s+'s' : ''),
-		d_str = previous < current ? `<span>&Delta; ${d_sign}${d_time}</span>` : '';
+		sign = delta < 0 ? '-' : '',
+		time = (m > 0 ? m+'m' : '') + (m > 0 && s > 0 ? ':' : '') + (s > 0 ? s+'s' : ''),
+		delta_str = time ? `<span>&Delta; ${sign}${time}</span>` : '';
 
-	return `${format(current, 'HH:mm')} ${d_str} <small>(${(Date.now() > current ? '+' : '-')}${formatDistanceToNowStrict(current)})</small>`;
+	return `${format(current, 'HH:mm')} ${delta_str} ${rel}`;
+}
+
+function moonPhase(){
+	let p = wxdata.daily[0].moon_phase;
+
+	if(p == 0) return '<small>NEW</small>';
+	else if(p == .5) return '<small>FULL</small>';
+	else if(p < .5) return `+${Math.round(p * 200)}%`;
+	else return `-${Math.round((1 - p) * 200)}%`;
 }
 
 function updateDisplay(){
 	let now = new Date(),
+		now_sec = now.getTime() / 1000,
 		precip = false,
 		nfo = '',
+		d0 = wxdata.daily[0],
+		d1 = wxdata.daily[1],
 		current_sunrise = wxdata.current.sunrise * 1000,
 		current_sunset = wxdata.current.sunset * 1000,
-		current_moonrise = wxdata.daily[0].moonrise * 1000,
-		current_moonset = wxdata.daily[0].moonset * 1000;
-	
+		//which occurrence of each event to display
+		sunrise_at = now_sec > d0.sunset ? d1.sunrise : d0.sunrise,
+		sunset_at = d0.sunset,
+		moonrise_at = d0.moonrise || d1.moonrise,
+		moonset_at = d0.moonset || d1.moonset;
+
+	if(now_sec > moonset_at) moonrise_at = d1.moonrise || d0.moonrise;
+
 	//update chart scale
 	wxchart.options.scales.y1.min = [11,0,1,2].includes(now.getMonth()) ? -10 : 0;
 	wxchart.update();
-	
+
 	//set display theme
 	if(now < current_sunrise) body.className = 'predawn';
 	else if(now > current_sunset) body.className = 'night';
 	else if(now > current_sunrise && now < (current_sunset - ((current_sunset - current_sunrise) / 2))) body.className = 'morn';
 	else body.className = 'eve';
-	
-	//adjust rise/set times and log previous
-	if(sun.rise < current_sunrise){
-		last.sunrise.setTime(sun.rise.getTime());
-		sun.rise.setTime(current_sunrise);
-	}
-	if(now > current_sunset){
-		sun.rise.setTime(wxdata.daily[1].sunrise * 1000);
-		last.sunrise.setTime(current_sunrise);
-	}
-	if(sun.set < current_sunset && now > current_sunrise){
-		last.sunset.setTime(sun.set.getTime());
-		sun.set.setTime(current_sunset);
-	}
-	if(current_moonrise == 0){ //moon does not rise today
-		current_moonrise = wxdata.daily[1].moonrise * 1000;
-	}
-	if(current_moonset == 0){ //moon does not set today
-		current_moonset = wxdata.daily[1].moonset * 1000;
-	}
-	if(moon.rise < current_moonrise){
-		last.moonrise.setTime(moon.rise.getTime());
-		moon.rise.setTime(current_moonrise);
-	}
-	if(now > current_moonset){
-		last.moonrise.setTime(current_moonrise);
-		moon.rise.setTime(wxdata.daily[1].moonrise * 1000);
-	}
-	if(moon.set < current_moonset){
-		last.moonset.setTime(moon.set.getTime());
-		moon.set.setTime(current_moonset);
-	}
 
-	let ml_start = (moon.rise > sun.set) ? moon.rise : sun.set,
-		ml_end = (moon.set > wxdata.daily[1].sunrise * 1000) ? wxdata.daily[1].sunrise * 1000 : moon.set,
+	let ml_start = Math.max(moonrise_at, sunset_at) * 1000,
+		ml_end = Math.min(moonset_at, d1.sunrise) * 1000,
 		moonlight = intervalToDuration({start:ml_start, end:ml_end}),
 		daylight = intervalToDuration({start:current_sunrise, end:current_sunset});
 
 	//populate the display
 	wxdisplay.querySelector('.temp .current').innerText = Math.round(wxdata.current.temp);
-	wxdisplay.querySelector('.temp .min').innerText = Math.round(wxdata.daily[0].temp.min);
-	wxdisplay.querySelector('.temp .max').innerText = Math.round(wxdata.daily[0].temp.max);
+	wxdisplay.querySelector('.temp .min').innerText = Math.round(d0.temp.min);
+	wxdisplay.querySelector('.temp .max').innerText = Math.round(d0.temp.max);
 	wxdisplay.querySelector('.humidity').innerText = wxdata.current.humidity;
 	wxdisplay.querySelector('.pressure').innerText = mb2inHg(wxdata.current.pressure);
 	wxdisplay.querySelector('.dew_point').innerText = Math.round(wxdata.current.dew_point);
 	wxdisplay.querySelector('.sun .uvi').innerText = wxdata.current.uvi;
-	wxdisplay.querySelector('.sun .rise').innerHTML = sun.rise_str();
-	wxdisplay.querySelector('.sun .set').innerHTML = sun.set_str();
+	wxdisplay.querySelector('.sun .rise').innerHTML = astroStr(sunrise_at, previousEvent('sunrise', sunrise_at));
+	wxdisplay.querySelector('.sun .set').innerHTML = astroStr(sunset_at, previousEvent('sunset', sunset_at));
 	wxdisplay.querySelector('.sun .time .lod').innerHTML = `${daylight.hours}h:${daylight.minutes}m`;
 	wxdisplay.querySelector('.sun .time .lom').innerHTML = `${moonlight.hours}h:${moonlight.minutes}m`;
-	wxdisplay.querySelector('.moon .rise').innerHTML = moon.rise_str();
-	wxdisplay.querySelector('.moon .set').innerHTML = moon.set_str();
-	wxdisplay.querySelector('.moon .phase').innerHTML = moon.phase();
-	
+	wxdisplay.querySelector('.moon .rise').innerHTML = moonrise_at ? astroStr(moonrise_at, previousEvent('moonrise', moonrise_at)) : '&mdash;';
+	wxdisplay.querySelector('.moon .set').innerHTML = moonset_at ? astroStr(moonset_at, previousEvent('moonset', moonset_at)) : '&mdash;';
+	wxdisplay.querySelector('.moon .phase').innerHTML = moonPhase();
+
 	precip = !!document.getElementById('wxmap');
 	/*for(let i=0; i<12; i++)
 		if(wxdata.hourly[i].weather[0].id < 800) precip = true;*/
-	
+
 	if(precip){
 		getMap();
 		if(Math.floor(wxdata.hourly[0].weather[0].id / 100) == 7) nfo += wxdata.hourly[0].weather[0].main;
 		else if(Math.floor(wxdata.hourly[1].weather[0].id / 100) == 7) nfo += wxdata.hourly[1].weather[0].main;
 	}
-	
+
 	document.querySelector('#as-of').innerText = format(now, 'HH:mm');
 	document.querySelector('#nfo').innerHTML = nfo;
 }
@@ -377,8 +341,6 @@ function fetchWeather(){
 			updateDisplay();
 			wxchart.update();
 
-			last.update.setTime(now.getTime());
-			localStorage[last_storage_key] = JSON.stringify(last);
 			document.body.classList.remove('error');
 			error_state = false;
 		}).catch(error => {

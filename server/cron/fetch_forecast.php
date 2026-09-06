@@ -71,6 +71,7 @@ function fetch_forecast_for_location(PDO $pdo, array $location, string $api_key)
     try {
         write_hourly($pdo, $location_id, $data['hourly']);
         write_daily($pdo, $location_id, $data['daily']);
+        write_astro($pdo, $location_id, $data['daily']);
         if (isset($data['current'])) {
             write_current_extras($pdo, $location_id, $data['current']);
         }
@@ -138,6 +139,42 @@ function write_daily(PDO $pdo, int $location_id, array $days): void
             'temp_max'     => round((float) ($d['temp']['max'] ?? 0), 2),
             'weather_id'   => (int) ($w['id'] ?? 800),
             'weather_main' => substr((string) ($w['main'] ?? ''), 0, 32),
+        ]);
+    }
+}
+
+/**
+ * Append-only mirror of the astro fields from write_daily(). Upserted per
+ * day so past rows accumulate (wx_daily itself is wiped every run), giving
+ * the frontend yesterday's sunrise/sunset for the delta display and a
+ * permanent record for a historical view.
+ */
+function write_astro(PDO $pdo, int $location_id, array $days): void
+{
+    $stmt = $pdo->prepare('
+        INSERT INTO wx_astro (location_id, dt, sunrise, sunset, moonrise, moonset, moon_phase)
+        VALUES (:location_id, :dt, :sunrise, :sunset, :moonrise, :moonset, :moon_phase)
+        ON DUPLICATE KEY UPDATE
+            sunrise = VALUES(sunrise),
+            sunset = VALUES(sunset),
+            moonrise = VALUES(moonrise),
+            moonset = VALUES(moonset),
+            moon_phase = VALUES(moon_phase)
+    ');
+
+    foreach ($days as $d) {
+        $dt = (int) ($d['dt'] ?? 0);
+        if ($dt === 0) {
+            continue;
+        }
+        $stmt->execute([
+            'location_id' => $location_id,
+            'dt'          => $dt,
+            'sunrise'     => (int) ($d['sunrise'] ?? 0),
+            'sunset'      => (int) ($d['sunset'] ?? 0),
+            'moonrise'    => (int) ($d['moonrise'] ?? 0),
+            'moonset'     => (int) ($d['moonset'] ?? 0),
+            'moon_phase'  => round((float) ($d['moon_phase'] ?? 0), 2),
         ]);
     }
 }
