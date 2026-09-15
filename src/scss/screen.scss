@@ -2,7 +2,7 @@
 @use 'base' as *;
 
 @import '../icomoon/style';
-
+html{background-color:#000;}
 body{background:no-repeat center; background-size:cover;
 	&.morn{background-image:url('/assets/goodwx/img/bg-morn.jpg');}
 	&.eve{background-image:url('/assets/goodwx/img/bg-eve.jpg');}
