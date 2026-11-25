@@ -1,6 +1,6 @@
 <?php
 /**
- * GET /server/api/history.php?location=<slug>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>
+ * GET /wx-serve/api/history.php?location=<slug>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>
  *
  * Raw archive for one location over an arbitrary date range: the hourly
  * observation log (wx_log) and the daily astronomical events (wx_astro).
@@ -20,7 +20,9 @@ if (!is_string($slug) || !preg_match('/^[a-z0-9-]{1,64}$/', $slug)) {
 }
 
 $now = time();
-$to = parse_ymd_utc($_GET['to'] ?? null, $now);
+// A given "to" date covers that whole day, so the range ends at 23:59:59 UTC.
+$to_day = parse_ymd_utc($_GET['to'] ?? null, -1);
+$to = $to_day === -1 ? $now : $to_day + 86399;
 $from = parse_ymd_utc($_GET['from'] ?? null, $to - 7 * 86400);
 
 if ($from > $to) {
