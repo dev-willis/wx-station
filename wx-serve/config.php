@@ -14,7 +14,7 @@ $config = [
 
 // Optional file override for credentials, checked instead of/in addition to
 // env vars. WX_CONFIG_FILE lets it live outside the web root entirely (see
-// server/README.md for the recommended location); falling back to
+// wx-serve/README.md for the recommended location); falling back to
 // config.local.php here is only for convenience on local dev boxes.
 $local = getenv('WX_CONFIG_FILE') ?: (__DIR__ . '/config.local.php');
 if (is_file($local)) {

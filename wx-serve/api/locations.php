@@ -1,6 +1,6 @@
 <?php
 /**
- * GET /server/api/locations.php
+ * GET /wx-serve/api/locations.php
  *
  * Lists the active locations available to query via weather.php.
  */

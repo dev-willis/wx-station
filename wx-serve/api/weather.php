@@ -1,6 +1,6 @@
 <?php
 /**
- * GET /server/api/weather.php?location=<slug>
+ * GET /wx-serve/api/weather.php?location=<slug>
  *
  * Returns current conditions, hourly/daily forecast, and recent observation
  * history for one location, assembled from data the cron scripts already
@@ -52,7 +52,9 @@ function fetch_current(PDO $pdo, int $location_id): ?array
     $stmt->execute(['location_id' => $location_id]);
     $row = $stmt->fetch();
 
-    if (!$row) {
+    // fetched_at stays 0 when fetch_forecast.php created the row (dew point
+    // and UV only) before fetch_current.php ever ran; that's no data yet.
+    if (!$row || (int) $row['fetched_at'] === 0) {
         return null;
     }
 

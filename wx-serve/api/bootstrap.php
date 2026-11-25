@@ -35,10 +35,8 @@ if ($wx_app_dir === '' || !is_file($wx_app_dir . '/db.php')) {
         . 'Set WX_APP_DIR or create wx-serve/api/app_dir.php.');
     http_response_code(500);
     header('Content-Type: application/json; charset=utf-8');
-    echo json_encode([
-        'error' => 'Server misconfigured: app directory not found.',
-        'tried' => $wx_app_dir . '/db.php',
-    ]);
+    // The path tried goes to the error log only, never to the public response.
+    echo json_encode(['error' => 'Server misconfigured: app directory not found.']);
     exit;
 }
 
