@@ -38,7 +38,23 @@ tracked independently from the same database and the same cron jobs.
    The schema also seeds one `default` location using the station's original
    hardcoded coordinates.
 
-   Useful flags: `--schema-only` / `--cron-only`, `--dry-run`,
+   If the database still has tables from the old MODX/xPDO version
+   (`wx_current`, `wx_hourly`, `wx_daily`, `wx_log` without a
+   `location_id` column, with or without the MODX table prefix), the
+   installer handles them first: unprefixed ones are renamed to
+   `<name>_legacy` so they don't block the new tables, and the old
+   observation log is imported into `wx_log` for the `default` location,
+   one row per hour, skipping hours already there. The old
+   current/hourly/daily tables only cached the last fetch, so they aren't
+   imported; drop them once you're happy. Pass `--skip-legacy` to leave
+   them all alone, and run with `--dry-run` first to see what it would do.
+
+   The old version ran `src/php/wx.fetch.current.php` and
+   `wx.fetch.forecast.php` from cron. The installer warns if the current
+   user's crontab still runs them; remove those lines by hand (check the
+   crontab of whichever user ran MODX's jobs too).
+
+   Useful flags: `--schema-only` / `--cron-only`, `--skip-legacy`, `--dry-run`,
    `--php-bin=PATH` (binary used in the crontab lines, defaults to the
    running interpreter), `--log-dir=PATH` (default `/var/log`),
    `--current-schedule=EXPR` / `--forecast-schedule=EXPR`. `--help` lists
@@ -116,8 +132,8 @@ listing) has nothing sensitive to expose.
 4. Otherwise `api/`'s parent directory — the intact-checkout layout used
    for local dev and CI. Keep it split in production.
 
-On a 500 with `{"error":"Server misconfigured..."}` the response's `tried`
-field and the PHP error log show which path it resolved to.
+On a 500 with `{"error":"Server misconfigured..."}` the PHP error log shows
+which path it resolved to (the path is kept out of the public response).
 
 The cron scripts and `install.php` run from the app directory with their
 own relative `require`s, so they need no environment variable.
@@ -162,8 +178,9 @@ The next cron run picks it up automatically. Load the frontend with
   data has been fetched yet.
 - `GET api/history.php?location=<slug>&from=<YYYY-MM-DD>&to=<YYYY-MM-DD>` —
   the raw append-only archive (`log` + `astro`) over an arbitrary date
-  range, for a historical view. Dates are UTC and optional (default: last
-  7 days); range capped at 366 days.
+  range, for a historical view. Dates are UTC, inclusive (the `to` day is
+  covered through 23:59:59) and optional (default: last 7 days); range
+  capped at 366 days.
 - `GET api/locations.php` — list of active locations (`slug`, `name`,
   `lat`, `lon`).
 

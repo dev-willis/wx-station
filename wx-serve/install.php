@@ -5,6 +5,12 @@
  * Two steps, both idempotent — safe to re-run:
  *   1. schema  — creates the wx_ tables (and the database itself if missing)
  *                by applying schema.sql through the configured connection.
+ *      Before that it looks for tables left by the old MODX/xPDO version
+ *      (wx_current, wx_hourly, wx_daily, wx_log without a location_id
+ *      column, with or without the MODX table prefix). Unprefixed ones
+ *      would block the new tables, so they're renamed to <name>_legacy;
+ *      afterwards the old observation log is imported into wx_log for the
+ *      'default' location, skipping hours that are already there.
  *   2. cron    — installs the fetch_current / fetch_forecast crontab entries
  *                for the current user, inside a managed "# wx-station" block.
  *
@@ -23,6 +29,8 @@
  *                            (default: every 10 minutes).
  *   --forecast-schedule=EXPR Cron expression for fetch_forecast
  *                            (default: top of every hour).
+ *   --skip-legacy            Leave tables from the old MODX/xPDO version
+ *                            alone: don't rename them or import their log.
  *   --dry-run                Print what would happen, change nothing.
  *   -h, --help               Show this help.
  */
@@ -44,6 +52,7 @@ if (isset($opts['help']) || isset($opts['h'])) {
 }
 
 $dry_run    = isset($opts['dry-run']);
+$skip_legacy = isset($opts['skip-legacy']);
 $do_schema  = !isset($opts['cron-only']);
 $do_cron    = !isset($opts['no-cron']) && !isset($opts['schema-only']);
 
@@ -55,7 +64,7 @@ $forecast_schedule = $opts['forecast-schedule'] ?? '0 * * * *';
 info($dry_run ? 'Running in --dry-run mode; nothing will be changed.' : 'Starting wx-station install.');
 
 if ($do_schema) {
-    install_schema($server_dir, $dry_run);
+    install_schema($server_dir, $dry_run, $skip_legacy);
 }
 
 if ($do_cron) {
@@ -75,7 +84,7 @@ exit(0);
 
 // ── Schema ───────────────────────────────────────────────────────────────────
 
-function install_schema(string $server_dir, bool $dry_run): void
+function install_schema(string $server_dir, bool $dry_run, bool $skip_legacy): void
 {
     section('Schema');
 
@@ -116,6 +125,11 @@ function install_schema(string $server_dir, bool $dry_run): void
 
     $pdo->exec("USE {$quoted_db}");
 
+    $legacy = [];
+    if ($exists && !$skip_legacy) {
+        $legacy = prepare_legacy_tables($pdo, $dry_run);
+    }
+
     $statements = split_sql_statements(file_get_contents($schema_file));
     info(count($statements) . ' schema statement(s) to apply.');
 
@@ -141,6 +155,166 @@ function install_schema(string $server_dir, bool $dry_run): void
         )->fetchAll(PDO::FETCH_COLUMN);
         info('wx_ tables present: ' . ($tables ? implode(', ', $tables) : '(none?)'));
     }
+
+    if ($legacy) {
+        import_legacy_log($pdo, $legacy, $dry_run);
+    }
+}
+
+// ── Legacy MODX/xPDO tables ──────────────────────────────────────────────────
+
+function quote_ident(string $name): string
+{
+    return '`' . str_replace('`', '``', $name) . '`';
+}
+
+function table_exists(PDO $pdo, string $name): bool
+{
+    return (bool) $pdo->query(
+        'SELECT 1 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '
+        . $pdo->quote($name)
+    )->fetchColumn();
+}
+
+/**
+ * Finds tables from the old xPDO schema: wx_current, wx_hourly, wx_daily or
+ * wx_log, optionally behind a MODX table prefix (modx_wx_log), that have no
+ * location_id column. Unprefixed ones share their names with the new
+ * tables, and CREATE TABLE IF NOT EXISTS would silently keep their old
+ * shape, so they're renamed to <name>_legacy first.
+ *
+ * Returns [base name => table to read from], e.g. ['wx_log' => 'modx_wx_log'].
+ */
+function prepare_legacy_tables(PDO $pdo, bool $dry_run): array
+{
+    section('Legacy tables');
+
+    $rows = $pdo->query(
+        "SELECT c.table_name AS tname,
+                SUM(c.column_name = 'location_id') AS has_location
+         FROM information_schema.columns c
+         WHERE c.table_schema = DATABASE()
+           AND c.table_name REGEXP '(^|_)wx_(current|hourly|daily|log)(_legacy)?$'
+         GROUP BY c.table_name"
+    )->fetchAll();
+
+    $found = [];
+    foreach ($rows as $row) {
+        $table = (string) $row['tname'];
+        if ((int) $row['has_location'] > 0) {
+            continue; // already the new schema
+        }
+        // A <name>_legacy table is one an earlier run already moved aside.
+        $bare = preg_replace('/_legacy$/', '', $table);
+        foreach (['wx_current', 'wx_hourly', 'wx_daily', 'wx_log'] as $base) {
+            if ($bare === $base || substr($bare, -strlen('_' . $base)) === '_' . $base) {
+                $found[$base][] = $table;
+            }
+        }
+    }
+
+    if (!$found) {
+        info('None found.');
+        return [];
+    }
+
+    $legacy = [];
+    $cache_tables = [];
+    foreach ($found as $base => $tables) {
+        // An unprefixed old table has to move out of the way regardless, so
+        // it's the one used when there are several candidates; next best is
+        // one an earlier run already renamed.
+        if (in_array($base, $tables, true)) {
+            $source = $base;
+        } elseif (in_array($base . '_legacy', $tables, true)) {
+            $source = $base . '_legacy';
+        } else {
+            $source = $tables[0];
+        }
+
+        if (count($tables) > 1) {
+            info("Several old-format {$base} tables (" . implode(', ', $tables) . "); using {$source}.");
+        }
+
+        if ($source === $base) {
+            $target = $base . '_legacy';
+            if (table_exists($pdo, $target)) {
+                fail("Old-format table {$base} is in the way of the new schema, and {$target} already exists. "
+                    . 'Rename or drop one of them by hand, then re-run (or pass --skip-legacy).');
+            }
+            if ($dry_run) {
+                info("Would rename old-format {$base} to {$target}.");
+            } else {
+                $pdo->exec('RENAME TABLE ' . quote_ident($base) . ' TO ' . quote_ident($target));
+                info("Renamed old-format {$base} to {$target}.");
+                $source = $target;
+            }
+        } else {
+            info("Found old-format {$base} as {$source}; leaving it in place.");
+        }
+
+        $legacy[$base] = $source;
+        if ($base !== 'wx_log') {
+            $cache_tables[] = $source === $base ? $base . '_legacy' : $source;
+        }
+    }
+
+    if ($cache_tables) {
+        info('Old current/hourly/daily tables only cached the last fetch and are not imported. Once');
+        info('you are happy with the new setup you can drop: ' . implode(', ', $cache_tables));
+    }
+
+    return $legacy;
+}
+
+/**
+ * Copies the old observation log into wx_log for the 'default' location
+ * (the station's original coordinates), one row per clock hour. Hours
+ * already in wx_log are skipped, so re-running never duplicates anything.
+ */
+function import_legacy_log(PDO $pdo, array $legacy, bool $dry_run): void
+{
+    if (!isset($legacy['wx_log'])) {
+        return;
+    }
+
+    $name = $legacy['wx_log'];
+    $source = quote_ident($name);
+    $hours = (int) $pdo->query(
+        "SELECT COUNT(DISTINCT FLOOR(recorded_at / 3600)) FROM {$source} WHERE recorded_at > 0"
+    )->fetchColumn();
+
+    if ($dry_run) {
+        info("Would import up to {$hours} hour(s) of old log from {$name} into wx_log for location 'default'.");
+        return;
+    }
+
+    $location_id = $pdo->query("SELECT id FROM wx_locations WHERE slug = 'default'")->fetchColumn();
+    if ($location_id === false) {
+        info("No 'default' location, so the old log in {$name} was not imported.");
+        return;
+    }
+
+    $stmt = $pdo->prepare("
+        INSERT INTO wx_log (location_id, recorded_at, temp, humidity, pressure)
+        SELECT :location_id, l.recorded_at, l.temp, l.humidity, l.pressure
+        FROM {$source} l
+        JOIN (
+            SELECT MIN(recorded_at) AS first_at
+            FROM {$source}
+            WHERE recorded_at > 0
+            GROUP BY FLOOR(recorded_at / 3600)
+        ) f ON f.first_at = l.recorded_at
+        WHERE NOT EXISTS (
+            SELECT 1 FROM wx_log w
+            WHERE w.location_id = :location_id_check
+              AND FLOOR(w.recorded_at / 3600) = FLOOR(l.recorded_at / 3600)
+        )
+        ORDER BY l.recorded_at
+    ");
+    $stmt->execute(['location_id' => (int) $location_id, 'location_id_check' => (int) $location_id]);
+
+    info("Imported {$stmt->rowCount()} of {$hours} hour(s) of old log from {$name} into wx_log.");
 }
 
 /**
@@ -201,6 +375,15 @@ function install_cron(
 
     $existing = read_current_crontab();
     $without_block = strip_managed_block($existing);
+
+    // The old MODX version ran src/php/wx.fetch.*.php from cron. If those
+    // lines are still here they keep calling OpenWeatherMap for nothing.
+    foreach (preg_split('/\n/', $without_block) as $line) {
+        if (preg_match('/wx\.fetch\.(current|forecast)\.php/', $line) && !preg_match('/^\s*#/', $line)) {
+            info("Warning: this crontab still runs the old MODX fetcher; remove this line by hand:");
+            info('  ' . trim($line));
+        }
+    }
     $had_block = trim($without_block) !== trim($existing);
 
     $new_crontab = rtrim($without_block, "\n");
