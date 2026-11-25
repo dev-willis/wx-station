@@ -129,8 +129,11 @@ function write_current(PDO $pdo, int $location_id, array $d): void
 }
 
 /**
- * Appends one entry to wx_log per hour, per location. No rows are ever
- * deleted — the table is a permanent archive.
+ * Appends one entry to wx_log per clock hour, per location: the first run
+ * in each hour logs, the rest of that hour's runs skip. (Comparing against
+ * "last entry + 3600s" instead drifts, because a run that starts a second
+ * early skips and the next entry lands 70 minutes after the last.) No rows
+ * are ever deleted — the table is a permanent archive.
  */
 function write_log(PDO $pdo, int $location_id, array $d, int $now): void
 {
@@ -143,7 +146,7 @@ function write_log(PDO $pdo, int $location_id, array $d, int $now): void
     $stmt->execute(['location_id' => $location_id]);
     $last = $stmt->fetchColumn();
 
-    if ($last !== false && (int) $last > $now - 3600) {
+    if ($last !== false && intdiv((int) $last, 3600) >= intdiv($now, 3600)) {
         return;
     }
 
